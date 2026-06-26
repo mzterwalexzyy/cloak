@@ -149,6 +149,9 @@ export function Tour() {
           )}
           <h4>{step.title}</h4>
           <p>{step.body}</p>
+          {step.welcome && (
+            <div className="tour-warn">⚠️ Use a <strong>burner wallet only</strong> — this is experimental testnet software.</div>
+          )}
           <div className="tour-actions">
             <button className="tour-skip" onClick={finish}>Skip tour</button>
             <div className="tour-nav">

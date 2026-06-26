@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useLocation, NavLink, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConnectBar } from "./ConnectBar";
+import { ChainPill } from "./ChainPill";
 import { Tour } from "./Tour";
 import { BRAND } from "../lib/brand";
 
@@ -54,7 +55,7 @@ export function Layout() {
           >
             ?
           </button>
-          <span className="chain-pill"><span className="chain-dot" /> Sepolia</span>
+          <ChainPill />
           <span data-tour="connect"><ConnectBar /></span>
           <button className="mobile-menu" onClick={() => setMenuOpen((o) => !o)} aria-label="Toggle menu">
             {menuOpen ? "×" : "☰"}

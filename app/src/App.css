@@ -99,6 +99,15 @@
   font-size: 0.98rem;
   font-weight: 800;
 }
+.chain-pill {
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.chain-pill:hover { border-color: var(--primary); background: #1a1d24; }
+.chain-pill:disabled { opacity: 0.6; cursor: default; }
+.chain-wrong { border-color: var(--bad); color: var(--bad); }
+.chain-wrong .chain-dot { background: var(--bad); box-shadow: 0 0 14px rgba(248, 113, 113, 0.8); }
 .chain-dot,
 .connect-pill .dot {
   width: 9px;
@@ -883,6 +892,18 @@
 .tour-welcome { text-align: center; padding: 26px 24px; }
 .tour-welcome h4 { font-size: 1.4rem; font-style: italic; }
 .tour-welcome .tour-actions { justify-content: center; margin-top: 20px; }
+.tour-warn {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #f7d488;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+}
+.tour-warn strong { color: #ffe9b0; }
 .tour-badge {
   width: 52px; height: 52px; margin: 0 auto 6px;
   display: grid; place-items: center; font-size: 24px;
@@ -1000,7 +1021,7 @@
   .row { grid-template-columns: auto 1fr auto; gap: 14px; }
   .row-addrs,
   .row-chev { display: none; }
-  .token-hero { grid-template-columns: 1fr; text-align: center; }
+  .token-hero { grid-template-columns: minmax(0, 1fr); text-align: center; }
   .token-hero .pair-badges { justify-content: center; }
   .pair-hero-tags.left { justify-content: center; }
   .balance-strip { grid-template-columns: 1fr; }
@@ -1256,9 +1277,15 @@
 .compact-registry { background: #080b0f; }
 
 @media (max-width: 980px) {
-  .zama-hero { grid-template-columns: 1fr; padding: 56px 22px 72px; min-height: auto; }
-  .zama-console { width: 100%; }
+  /* minmax(0,1fr) lets the column shrink below its content min-width so the
+     hero/console don't overflow the viewport on phones. */
+  .zama-hero { grid-template-columns: minmax(0, 1fr); padding: 56px 20px 64px; min-height: auto; }
+  .zama-console { width: 100%; min-width: 0; max-width: 100%; }
   .amount-line input { font-size: 2.45rem; }
+  .hero-copy, .console-head, .swap-panel, .amount-line, .receive-preview { min-width: 0; max-width: 100%; }
+  .hero-copy h1, .token-hero h1, .page-title, .docs-title, .console-head strong { overflow-wrap: anywhere; }
+  .amount-line input, .pairsel { min-width: 0; }
+  .hero-copy h1 { font-size: clamp(2.6rem, 12vw, 4.4rem); }
 }
 @media (max-width: 560px) {
   .console-mini-actions { grid-template-columns: 1fr; }
