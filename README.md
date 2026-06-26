@@ -1,4 +1,8 @@
-# Confidential Wrapper Registry
+# Cloak — Confidential Wrapper Registry
+
+**Live demo:** https://cloak-mzterwalexzyys-projects.vercel.app
+**Repo:** https://github.com/mzterwalexzyy/cloak
+
 
 A production-ready web app that turns the official **Zama Wrappers Registry** into a usable product. It surfaces **every** ERC‑20 ↔ ERC‑7984 wrapper pair on Sepolia, lets anyone **wrap / unwrap** any pair, **decrypts confidential balances** through the EIP‑712 user‑decryption flow, and ships a **built‑in faucet** for the official cTokenMocks.
 
