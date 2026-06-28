@@ -569,6 +569,56 @@
   transition: border-color 0.15s, background 0.15s;
 }
 .back-link:hover { border-color: var(--primary); background: var(--surface-3); color: #fff; }
+
+/* ===================== Redesigned swap page ===================== */
+.swap-page { max-width: 560px; margin: 0 auto; padding: 30px 18px 90px; }
+.swap-head { margin-bottom: 16px; }
+.swap-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+.swap-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.swap-pick-label { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.swap-card-top .pairsel { flex: 1; min-width: 0; }
+
+.swap-balances { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.swap-balances > div { background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.swap-balances span { display: block; color: var(--muted); font-size: 0.78rem; margin-bottom: 6px; }
+.swap-balances strong { font-size: 1.1rem; color: #fff; overflow-wrap: anywhere; }
+.swap-balances strong.locked { color: var(--conf); }
+
+.swap-tabs { display: flex; gap: 3px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 13px; padding: 4px; margin-bottom: 20px; }
+.swap-tab {
+  position: relative; isolation: isolate; flex: 1;
+  padding: 10px 0; border: none; background: transparent;
+  color: var(--muted); font: inherit; font-weight: 700; font-size: 0.86rem;
+  border-radius: 9px; cursor: pointer; transition: color 0.15s;
+}
+.swap-tab:hover { color: var(--text); }
+.swap-tab.active { color: #fff; }
+.swap-tab-underline { position: absolute; inset: 0; z-index: -1; border-radius: 9px; background: rgba(124,92,255,0.18); border: 1px solid rgba(124,92,255,0.45); }
+
+.swap-body { min-height: 210px; }
+.swap-field { margin-bottom: 12px; }
+.swap-field-label { font-size: 0.8rem; color: var(--muted); font-weight: 700; margin-bottom: 9px; }
+.swap-copy { color: var(--muted); font-size: 0.9rem; line-height: 1.55; margin: 0 0 16px; }
+.link-btn-center { display: block; margin: 12px auto 0; background: none; border: none; color: var(--primary-2); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.link-btn-center:hover { text-decoration: underline; }
+.link-btn-center:disabled { opacity: 0.5; cursor: default; }
+
+.swap-meta { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+
+@media (max-width: 560px) {
+  .swap-page { padding: 18px 14px 70px; }
+  .swap-card { padding: 16px; border-radius: 18px; }
+  .swap-balances { grid-template-columns: 1fr; }
+  .swap-tab { font-size: 0.8rem; padding: 9px 0; }
+  /* Hide the contract-detail tags on mobile to keep the screen clean. */
+  .swap-meta { display: none; }
+}
 .token-hero {
   display: grid;
   grid-template-columns: auto 1fr;

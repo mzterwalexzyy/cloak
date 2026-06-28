@@ -6,6 +6,7 @@ import { useZamaSdk } from "../hooks/useZamaSdk";
 import { usePairActions } from "../hooks/usePairActions";
 import { PairTile } from "../components/PairTile";
 import { PairSelect } from "../components/PairSelect";
+import { ActionButton } from "../components/ActionButton";
 import { TokenBadge } from "../components/TokenBadge";
 import { QuickPicks, TxLine } from "../components/AmountField";
 import { displaySym, fmtAmount } from "../lib/format";
@@ -126,9 +127,14 @@ export function RegistryPage() {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-full" onClick={a.doWrap} disabled={!zama.ready || !a.wrapAmt || a.wrapTx.status === "pending"}>
-            {a.wrapTx.status === "pending" ? "Preparing wallet request..." : `Wrap ${displaySym(selectedPair.underlying.symbol)}`}
-          </button>
+          <ActionButton
+            ready={!!a.wrapAmt}
+            readyHint="Enter an amount"
+            pending={a.wrapTx.status === "pending"}
+            pendingText="Confirm in your wallet…"
+            label={`Wrap ${displaySym(selectedPair.underlying.symbol)}`}
+            onAction={a.doWrap}
+          />
           <TxLine tx={a.wrapTx} />
 
           <div className="console-mini-actions">
