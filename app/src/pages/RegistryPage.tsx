@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
@@ -17,8 +17,15 @@ type StatusFilter = "all" | "active" | "revoked";
 export function RegistryPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useRegistryPairs();
   const zama = useZamaSdk();
-  const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [status, setStatus] = useState<StatusFilter>("all");
+
+  // Sync the search box when the header search navigates here with ?q=…
+  useEffect(() => {
+    const qp = searchParams.get("q");
+    if (qp !== null) setQ(qp);
+  }, [searchParams]);
   const [selectedAddress, setSelectedAddress] = useState("");
 
   const pairs = useMemo(() => data?.items ?? [], [data]);

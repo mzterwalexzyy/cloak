@@ -123,7 +123,13 @@ export function PairPage() {
             <>
               <p className="swap-copy">Nothing is published on-chain. Your wallet signs an EIP-712 message and the decrypted value is shown only to you.</p>
               <div className="decrypt-display">
-                {a.bal.loading ? (a.bal.msg ?? "Authorizing…") : a.bal.value !== undefined ? `${fmtAmount(a.bal.value, c.decimals)} ${displaySym(c.symbol)}` : "•••••• encrypted"}
+                {a.bal.loading ? (
+                  <span className="decrypt-status"><span className="spinner" />{a.bal.msg ?? "Authorizing…"}</span>
+                ) : a.bal.value !== undefined ? (
+                  <span className="decrypt-value">{fmtAmount(a.bal.value, c.decimals)} {displaySym(c.symbol)}</span>
+                ) : (
+                  <span className="decrypt-status">•••••• encrypted</span>
+                )}
               </div>
               <ActionButton
                 ready

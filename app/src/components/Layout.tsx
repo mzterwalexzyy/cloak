@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, Link } from "react-router-dom";
 import { ConnectBar } from "./ConnectBar";
 import { ChainPill } from "./ChainPill";
+import { NavSearch } from "./NavSearch";
 import { Tour } from "./Tour";
 import { BRAND } from "../lib/brand";
 
@@ -38,11 +39,7 @@ export function Layout() {
           ))}
         </nav>
 
-        <div className="relay-search" aria-hidden>
-          <span>⌕</span>
-          <span>Search token or wrapper</span>
-          <kbd>/</kbd>
-        </div>
+        <NavSearch />
 
         <div className="relay-actions">
           <button

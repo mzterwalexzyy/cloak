@@ -70,6 +70,18 @@
   border: 1px solid #292c31;
   font-size: 1rem;
 }
+.relay-search:focus-within { border-color: var(--primary); }
+.relay-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+.relay-search input::placeholder { color: #748096; }
 .relay-search kbd {
   margin-left: auto;
   border: 1px solid #3b3f46;
@@ -802,14 +814,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  padding: 14px 16px;
   border: 1px solid #30343b;
   border-radius: 14px;
   background: #101214;
   color: #fff;
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 950;
-  letter-spacing: -0.045em;
 }
+.decrypt-value { font-size: clamp(1.7rem, 5vw, 2.6rem); font-weight: 900; letter-spacing: -0.04em; overflow-wrap: anywhere; }
+.decrypt-status { display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; color: var(--muted); }
 .tx-line { margin-top: 14px; color: #a9b6c5; font-size: 0.96rem; font-weight: 750; }
 .tx-link { color: #8e78ff; }
 
