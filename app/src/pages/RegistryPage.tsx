@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
@@ -26,6 +26,17 @@ export function RegistryPage() {
     const qp = searchParams.get("q");
     if (qp !== null) setQ(qp);
   }, [searchParams]);
+
+  // SPA hash links don't auto-scroll — scroll to the registry section when
+  // arriving via /#registry (e.g. the "All pairs" back button or nav search).
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash !== "#registry") return;
+    const t = setTimeout(() => {
+      document.getElementById("registry")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [location.hash, location.key]);
   const [selectedAddress, setSelectedAddress] = useState("");
 
   const pairs = useMemo(() => data?.items ?? [], [data]);

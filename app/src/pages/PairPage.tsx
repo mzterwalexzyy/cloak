@@ -36,7 +36,7 @@ export function PairPage() {
 
   if (isLoading) return <div className="swap-page"><div className="loading">Loading token…</div></div>;
   if (!pair) {
-    return <div className="swap-page"><div className="empty">Token not found. <Link to="/">Back to registry</Link></div></div>;
+    return <div className="swap-page"><div className="empty">Token not found. <Link to="/#registry">Back to registry</Link></div></div>;
   }
 
   const { u, c } = a;
@@ -45,7 +45,7 @@ export function PairPage() {
   return (
     <div className="swap-page">
       <div className="swap-head">
-        <Link to="/" className="back-link">← All pairs</Link>
+        <Link to="/#registry" className="back-link">← All pairs</Link>
       </div>
 
       <motion.div
