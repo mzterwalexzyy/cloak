@@ -16,6 +16,7 @@ export interface AirdropCampaign {
   tokenSymbol: string;    // e.g. "cUSDC"
   tokenDecimals: number;
   underlyingSymbol: string; // e.g. "USDC"
+  startDate: string;        // ISO date string
   deadline: string;         // ISO date string
   recipients: AirdropRecipient[];
   createdAt: string;

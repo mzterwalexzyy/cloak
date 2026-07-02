@@ -17,7 +17,8 @@
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.0",
     "viem": "^2.53.1",
-    "wagmi": "^3.6.18"
+    "wagmi": "^3.6.18",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

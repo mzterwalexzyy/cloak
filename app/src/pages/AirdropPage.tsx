@@ -1,46 +1,212 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
 import { ActionButton } from "../components/ActionButton";
 import { PairSelect } from "../components/PairSelect";
 import { parseRecipientText } from "../hooks/useDisperse";
 import { airdropStore, type AirdropCampaign, type AirdropRecipient } from "../lib/airdropStore";
-import { displaySym, shortAddr, explorerTx } from "../lib/format";
-import { toBaseUnits } from "../lib/format";
+import { fetchDuneQuery, DUNE_KEY_STORAGE, type DuneRow } from "../lib/duneImport";
+import { displaySym, shortAddr, explorerTx, toBaseUnits } from "../lib/format";
 
 type Tab = "create" | "campaigns";
-
-// ── helpers ──────────────────────────────────────────────────────────────────
+type ImportMode = "paste" | "file" | "dune";
 
 function errMsg(e: unknown) {
-  return e instanceof Error ? e.message.slice(0, 160) : String(e);
+  return e instanceof Error ? e.message.slice(0, 200) : String(e);
 }
-
 function statusLabel(s: AirdropCampaign["status"]) {
   return s === "draft" ? "Draft" : s === "executing" ? "Executing…" : "Complete";
 }
 function statusCls(s: AirdropCampaign["status"]) {
   return s === "draft" ? "badge-idle" : s === "executing" ? "badge-pending" : "badge-ok";
 }
+function todayPlus(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
-// ── Campaign create form ──────────────────────────────────────────────────────
+// ── File import (CSV / Excel) ─────────────────────────────────────────────────
+
+async function parseFile(file: File): Promise<{ address: string; amount: string }[]> {
+  const buf = await file.arrayBuffer();
+  const wb = xlsxRead(buf, { type: "array" });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows: Record<string, unknown>[] = xlsxUtils.sheet_to_json(sheet, { defval: "" });
+  if (!rows.length) throw new Error("File is empty");
+
+  const keys = Object.keys(rows[0]);
+  const addrKey = keys.find((k) => /addr|wallet|user|recipient/i.test(k)) ?? keys[0];
+  const amtKey = keys.find((k) => /amount|amt|allocation|value/i.test(k));
+
+  return rows
+    .map((r) => ({
+      address: String(r[addrKey] ?? "").trim(),
+      amount: amtKey ? String(r[amtKey] ?? "").trim() : "",
+    }))
+    .filter((r) => /^0x[0-9a-fA-F]{40}$/.test(r.address));
+}
+
+// ── Dune import panel ─────────────────────────────────────────────────────────
+
+function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: string }[]) => void }) {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(DUNE_KEY_STORAGE) ?? "");
+  const [queryId, setQueryId] = useState("");
+  const [minTx, setMinTx] = useState("1");
+  const [minVol, setMinVol] = useState("0");
+  const [defAmt, setDefAmt] = useState("100");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [rows, setRows] = useState<DuneRow[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const filtered = rows.filter(
+    (r) =>
+      (r.tx_count === undefined || r.tx_count >= Number(minTx)) &&
+      (r.volume === undefined || r.volume >= Number(minVol)),
+  );
+
+  async function fetch() {
+    if (!apiKey.trim() || !queryId.trim()) { setErrorMsg("Enter both API key and query ID."); return; }
+    setStatus("loading");
+    setErrorMsg("");
+    localStorage.setItem(DUNE_KEY_STORAGE, apiKey.trim());
+    try {
+      const res = await fetchDuneQuery(apiKey.trim(), queryId.trim());
+      setRows(res.rows);
+      setStatus("done");
+    } catch (e) {
+      setErrorMsg(errMsg(e));
+      setStatus("error");
+    }
+  }
+
+  function doImport() {
+    onImport(filtered.map((r) => ({ address: r.address, amount: defAmt })));
+  }
+
+  return (
+    <div className="dune-panel">
+      <div className="dune-header">
+        <span className="dune-logo">◈ Dune</span>
+        <p className="dune-desc">
+          Pull a wallet list from any Dune Analytics query. Your query must return a column named
+          <code>address</code> (or <code>wallet</code> / <code>user</code>). Optional columns
+          <code>tx_count</code> and <code>volume</code> unlock the filters below.
+        </p>
+      </div>
+
+      <div className="dune-fields">
+        <div className="dc-section">
+          <label className="dc-label">Dune API key</label>
+          <input
+            className="dc-input mono-input"
+            type="password"
+            placeholder="paste your key from dune.com/settings/api"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </div>
+        <div className="dc-section">
+          <label className="dc-label">
+            Query ID
+            <span className="dc-label-meta">— the number in the Dune URL</span>
+          </label>
+          <input
+            className="dc-input"
+            placeholder="e.g. 4521938"
+            value={queryId}
+            onChange={(e) => setQueryId(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="dune-hint-box">
+        <strong>Suggested query for Zama:</strong> wallets that called the wrapper registry on Sepolia,
+        with columns <code>address</code>, <code>tx_count</code>, <code>volume</code>. Sort by tx_count desc.
+      </div>
+
+      <div className="dune-filters">
+        <div className="dc-section">
+          <label className="dc-label">Min tx count</label>
+          <input className="dc-input" type="number" min="0" value={minTx} onChange={(e) => setMinTx(e.target.value)} />
+        </div>
+        <div className="dc-section">
+          <label className="dc-label">Min volume (USD)</label>
+          <input className="dc-input" type="number" min="0" value={minVol} onChange={(e) => setMinVol(e.target.value)} />
+        </div>
+        <div className="dc-section">
+          <label className="dc-label">Amount per address</label>
+          <input className="dc-input" type="number" min="0" value={defAmt} onChange={(e) => setDefAmt(e.target.value)} />
+        </div>
+      </div>
+
+      {errorMsg && <div className="tx-line err">{errorMsg}</div>}
+
+      {status === "done" && rows.length > 0 && (
+        <div className="dune-results">
+          <div className="dc-parse-summary">
+            <span className="ok-badge">{rows.length} addresses fetched</span>
+            {rows.length !== filtered.length && (
+              <span className="muted">→ {filtered.length} after filters</span>
+            )}
+          </div>
+          <div className="dc-table-wrap" style={{ maxHeight: 200, overflowY: "auto" }}>
+            <table className="dc-table">
+              <thead><tr><th>Address</th><th>Tx count</th><th>Volume</th></tr></thead>
+              <tbody>
+                {filtered.slice(0, 50).map((r) => (
+                  <tr key={r.address}>
+                    <td className="mono">{shortAddr(r.address)}</td>
+                    <td className="mono">{r.tx_count ?? "—"}</td>
+                    <td className="mono">{r.volume !== undefined ? `$${r.volume.toLocaleString()}` : "—"}</td>
+                  </tr>
+                ))}
+                {filtered.length > 50 && (
+                  <tr><td colSpan={3} className="muted" style={{ textAlign: "center" }}>+{filtered.length - 50} more</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="dune-actions">
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={status === "loading"}
+          onClick={fetch}
+        >
+          {status === "loading" ? <><span className="spinner" /> Fetching…</> : "Fetch from Dune →"}
+        </button>
+        {status === "done" && filtered.length > 0 && (
+          <button className="btn btn-primary btn-sm" onClick={doImport}>
+            Import {filtered.length} addresses
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Create form ───────────────────────────────────────────────────────────────
 
 function CreateForm({ pairs, onCreated }: {
-  pairs: ReturnType<typeof useRegistryPairs>["data"] extends infer D ? D extends { items: Array<infer P> } ? P[] : never : never;
+  pairs: Parameters<typeof PairSelect>[0]["pairs"];
   onCreated: (id: string) => void;
 }) {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [selectedAddr, setSelectedAddr] = useState("");
-  const [deadline, setDeadline] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().slice(0, 10);
-  });
+  const [startDate, setStartDate] = useState(todayPlus(0));
+  const [deadline, setDeadline] = useState(todayPlus(7));
+  const [importMode, setImportMode] = useState<ImportMode>("paste");
   const [rawText, setRawText] = useState("");
-  const [error, setError] = useState("");
+  const [fileError, setFileError] = useState("");
+  const [formError, setFormError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const selectedPair = useMemo(
     () => (pairs as any[]).find((p: any) => p.confidentialTokenAddress === selectedAddr) ?? (pairs as any[])[0],
@@ -51,11 +217,38 @@ function CreateForm({ pairs, onCreated }: {
   const validRows = rows.filter((r) => !r.parseError);
   const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "—";
 
+  async function handleFile(file: File) {
+    setFileError("");
+    try {
+      const parsed = await parseFile(file);
+      if (!parsed.length) { setFileError("No valid addresses found in file."); return; }
+      const noAmt = parsed.filter((r) => !r.amount);
+      const lines = parsed.map((r) => `${r.address}${r.amount ? `, ${r.amount}` : ", 0"}`).join("\n");
+      setRawText(lines);
+      setImportMode("paste");
+      if (noAmt.length) setFileError(`${noAmt.length} rows had no amount column — set to 0. Edit below.`);
+    } catch (e) {
+      setFileError(errMsg(e));
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
+
+  function handleDuneImport(imported: { address: string; amount: string }[]) {
+    const lines = imported.map((r) => `${r.address}, ${r.amount}`).join("\n");
+    setRawText(lines);
+    setImportMode("paste");
+  }
+
   function handleCreate() {
-    if (!name.trim()) { setError("Give your campaign a name"); return; }
-    if (!selectedPair) { setError("Select a token"); return; }
-    if (validRows.length === 0) { setError("Add at least one valid recipient"); return; }
-    setError("");
+    if (!name.trim()) { setFormError("Give your campaign a name."); return; }
+    if (!selectedPair) { setFormError("Select a token."); return; }
+    if (validRows.length === 0) { setFormError("Add at least one valid recipient."); return; }
+    setFormError("");
 
     const recipients: AirdropRecipient[] = validRows.map((r) => ({
       address: r.address,
@@ -70,6 +263,7 @@ function CreateForm({ pairs, onCreated }: {
       tokenSymbol: selectedPair.confidential.symbol,
       tokenDecimals: selectedPair.confidential.decimals,
       underlyingSymbol: selectedPair.underlying.symbol,
+      startDate,
       deadline,
       recipients,
     });
@@ -78,10 +272,23 @@ function CreateForm({ pairs, onCreated }: {
 
   return (
     <div className="airdrop-create">
+      {/* ── Campaign meta ── */}
+      <div className="ac-row">
+        <div className="dc-section" style={{ gridColumn: "1 / -1" }}>
+          <label className="dc-label">Campaign name</label>
+          <input className="dc-input" placeholder="e.g. Season 1 Community Airdrop" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="dc-section">
+        <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
+        <input className="dc-input" placeholder="Reward early community members with confidential tokens" value={desc} onChange={(e) => setDesc(e.target.value)} />
+      </div>
+
       <div className="ac-row">
         <div className="dc-section">
-          <label className="dc-label">Campaign name</label>
-          <input className="dc-input" placeholder="e.g. Season 1 Airdrop" value={name} onChange={(e) => setName(e.target.value)} />
+          <label className="dc-label">Start date</label>
+          <input className="dc-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="dc-section">
           <label className="dc-label">Claim deadline</label>
@@ -90,43 +297,85 @@ function CreateForm({ pairs, onCreated }: {
       </div>
 
       <div className="dc-section">
-        <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
-        <input className="dc-input" placeholder="Reward early community members with confidential cUSDC" value={desc} onChange={(e) => setDesc(e.target.value)} />
-      </div>
-
-      <div className="dc-section">
         <label className="dc-label">Token to distribute</label>
-        <PairSelect pairs={pairs as any} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} />
+        <PairSelect pairs={pairs} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} />
         {selectedPair && (
-          <div className="dc-hint">Sending <strong>{sym}</strong> · amounts encrypted on-chain by Zama FHE</div>
+          <div className="dc-hint">Sending <strong>{sym}</strong> · amounts FHE-encrypted on-chain by Zama</div>
         )}
       </div>
 
+      {/* ── Import mode tabs ── */}
       <div className="dc-section">
-        <label className="dc-label">
-          Recipients
-          <span className="dc-label-meta">one per line · <code>address, amount</code></span>
-        </label>
-        <textarea
-          className="dc-textarea"
-          rows={8}
-          placeholder={"0xRecipient1, 100\n0xRecipient2, 250\n0xRecipient3, 75"}
-          value={rawText}
-          onChange={(e) => setRawText(e.target.value)}
-          spellCheck={false}
-        />
-        {rows.length > 0 && (
-          <div className="dc-parse-summary">
-            <span className="ok-badge">{validRows.length} valid</span>
-            {rows.length - validRows.length > 0 && <span className="err-badge">{rows.length - validRows.length} errors</span>}
-            {validRows.length > 0 && (
-              <span className="muted">·  total {validRows.reduce((s, r) => s + (Number(r.amount) || 0), 0).toFixed(4)} {sym}</span>
-            )}
+        <div className="import-mode-tabs">
+          {([
+            ["paste", "✎ Paste list"],
+            ["file", "⬆ Upload CSV / Excel"],
+            ["dune", "◈ Import from Dune"],
+          ] as [ImportMode, string][]).map(([m, label]) => (
+            <button
+              key={m}
+              className={`import-mode-tab ${importMode === m ? "active" : ""}`}
+              onClick={() => setImportMode(m)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {importMode === "paste" && (
+          <>
+            <div className="dc-label" style={{ marginTop: 12 }}>
+              Recipients
+              <span className="dc-label-meta">one per line · <code>address, amount</code></span>
+            </div>
+            <textarea
+              className="dc-textarea"
+              rows={7}
+              placeholder={"0xRecipient1, 100\n0xRecipient2, 250\n0xRecipient3, 75"}
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              spellCheck={false}
+            />
+          </>
+        )}
+
+        {importMode === "file" && (
+          <div
+            className={`file-drop-zone`}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+            <span className="fdz-icon">📂</span>
+            <p>Drag & drop or <u>click to browse</u></p>
+            <p className="fdz-sub">Accepts .csv, .xlsx, .xls · Needs an <code>address</code> column · optional <code>amount</code> column</p>
+            {fileError && <div className="tx-line err" style={{ marginTop: 8 }}>{fileError}</div>}
           </div>
         )}
+
+        {importMode === "dune" && (
+          <DunePanel onImport={handleDuneImport} />
+        )}
       </div>
 
-      {error && <div className="tx-line err">{error}</div>}
+      {rows.length > 0 && importMode === "paste" && (
+        <div className="dc-parse-summary">
+          <span className="ok-badge">{validRows.length} valid</span>
+          {rows.length - validRows.length > 0 && <span className="err-badge">{rows.length - validRows.length} errors</span>}
+          {validRows.length > 0 && (
+            <span className="muted">· total {validRows.reduce((s, r) => s + (Number(r.amount) || 0), 0).toFixed(2)} {sym}</span>
+          )}
+        </div>
+      )}
+
+      {formError && <div className="tx-line err">{formError}</div>}
 
       <button
         className="btn btn-primary btn-full"
@@ -139,7 +388,7 @@ function CreateForm({ pairs, onCreated }: {
   );
 }
 
-// ── Campaign detail / execute panel ──────────────────────────────────────────
+// ── Campaign detail ───────────────────────────────────────────────────────────
 
 function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
   campaign: AirdropCampaign;
@@ -151,7 +400,6 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
   const [isRunning, setIsRunning] = useState(false);
   const cancelRef = useRef(false);
 
-  // Reload from store after updates
   useEffect(() => {
     setCampaign(airdropStore.get(initial.id) ?? initial);
   }, [initial.id]);
@@ -170,14 +418,10 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
 
     for (const r of campaign.recipients) {
       if (cancelRef.current) break;
-      if (r.status === "sent") continue; // skip already sent
+      if (r.status === "sent") continue;
 
-      // Update local display
       airdropStore.updateRecipient(campaign.id, r.address, { status: "pending" });
-      setCampaign((c) => ({
-        ...c,
-        recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "pending" } : x),
-      }));
+      setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "pending" } : x) }));
 
       try {
         const token = zama.getSdk().createToken(campaign.tokenAddress as `0x${string}`);
@@ -187,22 +431,15 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
         );
         const hash = res && typeof res === "object" && "txHash" in res ? (res as any).txHash : undefined;
         airdropStore.updateRecipient(campaign.id, r.address, { status: "sent", txHash: hash });
-        setCampaign((c) => ({
-          ...c,
-          recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "sent", txHash: hash } : x),
-        }));
+        setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "sent", txHash: hash } : x) }));
       } catch (e) {
         airdropStore.updateRecipient(campaign.id, r.address, { status: "failed", errMsg: errMsg(e) });
-        setCampaign((c) => ({
-          ...c,
-          recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "failed", errMsg: errMsg(e) } : x),
-        }));
+        setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "failed", errMsg: errMsg(e) } : x) }));
       }
     }
 
     const latest = airdropStore.get(campaign.id)!;
-    const allSent = latest.recipients.every((r) => r.status === "sent");
-    airdropStore.update(campaign.id, { status: allSent ? "done" : latest.status === "executing" ? "done" : latest.status, executedAt: new Date().toISOString() });
+    airdropStore.update(campaign.id, { status: "done", executedAt: new Date().toISOString() });
     setCampaign(airdropStore.get(campaign.id) ?? latest);
     setIsRunning(false);
     onUpdate();
@@ -218,17 +455,19 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
           {campaign.description && <p className="cd-desc">{campaign.description}</p>}
           <div className="cd-meta">
             <span className={`badge ${statusCls(campaign.status)}`}>{statusLabel(campaign.status)}</span>
-            <span className="muted">· {sym} · {total} recipients · deadline {campaign.deadline}</span>
+            <span className="muted">
+              · {sym} · {total} recipients
+              · {campaign.startDate} → {campaign.deadline}
+            </span>
           </div>
         </div>
-
         {!isDone && (
           <ActionButton
             ready={!isRunning}
             readyHint="Loading…"
             pending={isRunning}
             pendingText={`Sending… ${sentCount}/${total}`}
-            label={sentCount > 0 ? `Resume airdrop (${total - sentCount} left)` : `Launch airdrop →`}
+            label={sentCount > 0 ? `Resume (${total - sentCount} left)` : "Launch airdrop →"}
             onAction={execute}
             className="btn btn-primary"
           />
@@ -238,16 +477,14 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
       {isDone && (
         <div className={`dc-done-banner ${failCount > 0 ? "partial" : "success"}`}>
           {failCount === 0
-            ? `✓ All ${sentCount} tokens distributed confidentially`
+            ? `✓ All ${sentCount} allocations distributed confidentially`
             : `⚠ ${sentCount} sent, ${failCount} failed`}
         </div>
       )}
 
       <div className="dc-table-wrap">
         <table className="dc-table">
-          <thead>
-            <tr><th>#</th><th>Recipient</th><th>Amount</th><th>Status</th></tr>
-          </thead>
+          <thead><tr><th>#</th><th>Recipient</th><th>Amount</th><th>Status</th></tr></thead>
           <tbody>
             {campaign.recipients.map((r, i) => (
               <tr key={r.address} className={r.status === "sent" ? "row-ok" : r.status === "failed" ? "row-fail" : ""}>
@@ -257,9 +494,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
                 <td>
                   {r.status === "sent" ? (
                     <span className="badge badge-ok">
-                      {r.txHash
-                        ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a>
-                        : "sent ✓"}
+                      {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
                     </span>
                   ) : r.status === "failed" ? (
                     <span className="badge badge-err" title={r.errMsg}>failed</span>
@@ -285,11 +520,11 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  if (campaigns.length === 0) {
+  if (!campaigns.length) {
     return (
       <div className="dc-empty">
         <span>🪂</span>
-        <p>No campaigns yet. Create your first one above.</p>
+        <p>No campaigns yet. Create your first one.</p>
       </div>
     );
   }
@@ -304,16 +539,14 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
               <div className="cr-name">{c.name}</div>
               <div className="cr-meta">
                 <span className={`badge ${statusCls(c.status)}`}>{statusLabel(c.status)}</span>
-                <span className="muted">· {sym} · {c.recipients.length} recipients · {sent} sent</span>
+                <span className="muted">· {sym} · {c.recipients.length} recipients · {sent} sent · {c.startDate} → {c.deadline}</span>
               </div>
             </div>
             <div className="cr-right">
               <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onSelect(c.id); }}>
                 {c.status === "draft" ? "Launch →" : c.status === "done" ? "View" : "Resume →"}
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}>
-                Delete
-              </button>
+              <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}>Delete</button>
             </div>
           </div>
         );
@@ -328,22 +561,16 @@ export function AirdropPage() {
   const { data } = useRegistryPairs();
   const zama = useZamaSdk();
   const pairs = useMemo(() => data?.items ?? [], [data]);
-
   const [tab, setTab] = useState<Tab>("campaigns");
   const [campaigns, setCampaigns] = useState<AirdropCampaign[]>(() => airdropStore.list());
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const reload = useCallback(() => setCampaigns(airdropStore.list()), []);
-
   const selectedCampaign = selectedId ? campaigns.find((c) => c.id === selectedId) : null;
 
-  function handleCreated(id: string) {
-    reload();
-    setSelectedId(id);
-  }
-
+  function handleCreated(id: string) { reload(); setSelectedId(id); }
   function handleDelete(id: string) {
-    if (!window.confirm("Delete this campaign? This cannot be undone.")) return;
+    if (!window.confirm("Delete this campaign?")) return;
     airdropStore.delete(id);
     reload();
     if (selectedId === id) setSelectedId(null);
@@ -357,34 +584,24 @@ export function AirdropPage() {
           <div className="distrib-kicker">Confidential Distribution</div>
           <h1 className="distrib-title">Airdrop</h1>
           <p className="distrib-sub">
-            Create named campaigns to distribute confidential ERC-7984 tokens to any list of recipients.
-            Amounts are FHE-encrypted on-chain — only each recipient can decrypt what they received.
+            Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
+            CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
+            each recipient can see what they received.
           </p>
         </div>
       </div>
 
       {selectedCampaign ? (
         <div className="distrib-card airdrop-full">
-          <CampaignDetail
-            campaign={selectedCampaign}
-            zama={zama}
-            onBack={() => setSelectedId(null)}
-            onUpdate={reload}
-          />
+          <CampaignDetail campaign={selectedCampaign} zama={zama} onBack={() => setSelectedId(null)} onUpdate={reload} />
         </div>
       ) : (
         <>
           <div className="distrib-tabs">
             {([["campaigns", "My Campaigns"], ["create", "New Campaign"]] as [Tab, string][]).map(([t, label]) => (
-              <button
-                key={t}
-                className={`distrib-tab ${tab === t ? "active" : ""}`}
-                onClick={() => setTab(t)}
-              >
+              <button key={t} className={`distrib-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
                 {label}
-                {t === "campaigns" && campaigns.length > 0 && (
-                  <span className="tab-count">{campaigns.length}</span>
-                )}
+                {t === "campaigns" && campaigns.length > 0 && <span className="tab-count">{campaigns.length}</span>}
               </button>
             ))}
           </div>
@@ -399,11 +616,7 @@ export function AirdropPage() {
             {tab === "create" ? (
               <CreateForm pairs={pairs as any} onCreated={handleCreated} />
             ) : (
-              <CampaignList
-                campaigns={campaigns}
-                onSelect={(id) => { setSelectedId(id); }}
-                onDelete={handleDelete}
-              />
+              <CampaignList campaigns={campaigns} onSelect={setSelectedId} onDelete={handleDelete} />
             )}
           </motion.div>
         </>
