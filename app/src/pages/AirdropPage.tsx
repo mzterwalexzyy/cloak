@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
@@ -476,9 +476,15 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
 
       {isDone && (
         <div className={`dc-done-banner ${failCount > 0 ? "partial" : "success"}`}>
-          {failCount === 0
-            ? `✓ All ${sentCount} allocations distributed confidentially`
-            : `⚠ ${sentCount} sent, ${failCount} failed`}
+          <div className="done-counts">
+            <span className="done-count ok">{sentCount} sent</span>
+            {failCount > 0 && <span className="done-count fail">{failCount} failed</span>}
+          </div>
+          <p className="done-sub">
+            {failCount === 0
+              ? "All allocations distributed confidentially."
+              : "Failed rows show the reason below — you can Resume to retry them."}
+          </p>
         </div>
       )}
 
@@ -487,24 +493,32 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
           <thead><tr><th>#</th><th>Recipient</th><th>Amount</th><th>Status</th></tr></thead>
           <tbody>
             {campaign.recipients.map((r, i) => (
-              <tr key={r.address} className={r.status === "sent" ? "row-ok" : r.status === "failed" ? "row-fail" : ""}>
-                <td className="mono muted">{i + 1}</td>
-                <td className="mono">{shortAddr(r.address)}</td>
-                <td className="mono">{r.amount} {sym}</td>
-                <td>
-                  {r.status === "sent" ? (
-                    <span className="badge badge-ok">
-                      {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
-                    </span>
-                  ) : r.status === "failed" ? (
-                    <span className="badge badge-err" title={r.errMsg}>failed</span>
-                  ) : r.status === "pending" ? (
-                    <span className="badge badge-pending"><span className="spinner" /> sending</span>
-                  ) : (
-                    <span className="badge badge-idle">pending</span>
-                  )}
-                </td>
-              </tr>
+              <Fragment key={r.address}>
+                <tr className={r.status === "sent" ? "row-ok" : r.status === "failed" ? "row-fail" : ""}>
+                  <td className="mono muted">{i + 1}</td>
+                  <td className="mono">{shortAddr(r.address)}</td>
+                  <td className="mono">{r.amount} {sym}</td>
+                  <td>
+                    {r.status === "sent" ? (
+                      <span className="badge badge-ok">
+                        {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
+                      </span>
+                    ) : r.status === "failed" ? (
+                      <span className="badge badge-err">failed</span>
+                    ) : r.status === "pending" ? (
+                      <span className="badge badge-pending"><span className="spinner" /> sending</span>
+                    ) : (
+                      <span className="badge badge-idle">pending</span>
+                    )}
+                  </td>
+                </tr>
+                {r.errMsg && (
+                  <tr className="row-reason">
+                    <td />
+                    <td colSpan={3} className="row-reason-text">{r.errMsg}</td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
