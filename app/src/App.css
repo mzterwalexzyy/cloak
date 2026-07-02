@@ -199,9 +199,9 @@
 .hero-copy h1 {
   margin: 0;
   max-width: 690px;
-  font-size: clamp(4rem, 6.5vw, 6.5rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+  font-size: clamp(3rem, 4.8vw, 5rem);
+  line-height: 1.0;
+  letter-spacing: -0.05em;
   font-weight: 950;
   font-style: italic;
   color: #f7f8fb;
@@ -211,9 +211,9 @@
 }
 .hero-copy p {
   max-width: 570px;
-  margin: 34px 0 42px;
+  margin: 20px 0 28px;
   color: #a9b6c5;
-  font-size: 1.32rem;
+  font-size: 1.18rem;
   line-height: 1.45;
   font-weight: 700;
 }
@@ -1149,8 +1149,8 @@
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(430px, 0.88fr);
   align-items: center;
-  gap: clamp(42px, 7vw, 110px);
-  padding: 78px clamp(28px, 8vw, 136px) 92px;
+  gap: clamp(36px, 6vw, 100px);
+  padding: 52px clamp(28px, 8vw, 136px) 60px;
   background:
     radial-gradient(700px 420px at 82% 48%, rgba(55, 230, 212, 0.12), transparent 66%),
     radial-gradient(620px 360px at 12% 18%, rgba(124, 92, 255, 0.16), transparent 62%),

@@ -176,7 +176,7 @@ export function RegistryPage() {
         <div className="proof-grid">
           <InfoCard title="Registry native" body="Every token pair is loaded from Zama's official wrapper registry, not a hand-made list." />
           <InfoCard title="Owner-only reveal" body="Decrypting asks your wallet for authorization before showing the balance in your browser." />
-          <InfoCard title="Bounty complete" body="Wrap, unwrap, decrypt, confidential send, and faucet are all part of one clean product flow." />
+          <InfoCard title="Full lifecycle" body="Wrap, unwrap, decrypt, confidential send, and faucet — the complete token privacy flow in one place." />
         </div>
       </section>
 

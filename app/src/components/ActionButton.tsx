@@ -1,10 +1,14 @@
-import { useAccount, useChainId, useConnect, useSwitchChain } from "wagmi";
+import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { SEPOLIA_CHAIN_ID } from "../lib/wagmi";
 
 /**
- * A wallet-aware primary button. Instead of silently disabling when the user
- * isn't connected / on the wrong network, it flows:
+ * A wallet-aware primary button. Flows:
  *   Connect Wallet → Switch to Sepolia → <readyHint> → <label/action>.
+ *
+ * Uses useAccount().chainId (the wallet's actual chain) rather than
+ * useChainId() which can fall back to the wagmi config's default (Sepolia)
+ * when the wallet is on a chain not in the config, silently bypassing the
+ * wrong-network check.
  */
 export function ActionButton({
   ready,
@@ -23,9 +27,8 @@ export function ActionButton({
   onAction: () => void;
   className?: string;
 }) {
-  const { isConnected } = useAccount();
+  const { isConnected, chainId: walletChainId } = useAccount();
   const { connect, connectors, isPending: connecting } = useConnect();
-  const chainId = useChainId();
   const { switchChain, isPending: switching } = useSwitchChain();
 
   if (!isConnected) {
@@ -36,7 +39,7 @@ export function ActionButton({
       </button>
     );
   }
-  if (chainId !== SEPOLIA_CHAIN_ID) {
+  if (walletChainId !== SEPOLIA_CHAIN_ID) {
     return (
       <button className={className} disabled={switching} onClick={() => switchChain({ chainId: SEPOLIA_CHAIN_ID })}>
         {switching ? "Switching…" : "Switch to Sepolia"}
