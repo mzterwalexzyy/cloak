@@ -8,6 +8,8 @@ import { BRAND } from "../lib/brand";
 
 const NAV = [
   { to: "/", label: "Wrap", end: true },
+  { to: "/disperse", label: "Disperse" },
+  { to: "/airdrop", label: "Airdrop" },
   { to: "/faucet", label: "Faucet" },
   { to: "/about", label: "Docs" },
 ];
@@ -76,6 +78,8 @@ export function Layout() {
               <h4>App</h4>
               <Link to="/">Wrap</Link>
               <Link to="/app">Swap console</Link>
+              <Link to="/disperse">Disperse</Link>
+              <Link to="/airdrop">Airdrop</Link>
               <Link to="/faucet">Faucet</Link>
               <Link to="/about">Docs</Link>
             </div>

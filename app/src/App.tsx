@@ -4,6 +4,8 @@ import { RegistryPage } from "./pages/RegistryPage";
 import { PairPage } from "./pages/PairPage";
 import { FaucetPage } from "./pages/FaucetPage";
 import { AboutPage } from "./pages/AboutPage";
+import { DispersePage } from "./pages/DispersePage";
+import { AirdropPage } from "./pages/AirdropPage";
 import "./App.css";
 
 export default function App() {
@@ -15,6 +17,8 @@ export default function App() {
         <Route path="pair/:address" element={<PairPage />} />
         <Route path="faucet" element={<FaucetPage />} />
         <Route path="about" element={<AboutPage />} />
+        <Route path="disperse" element={<DispersePage />} />
+        <Route path="airdrop" element={<AirdropPage />} />
         <Route path="*" element={<RegistryPage />} />
       </Route>
     </Routes>
