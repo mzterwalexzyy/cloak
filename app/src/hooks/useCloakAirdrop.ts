@@ -17,6 +17,8 @@ export interface ClaimStatus {
   currentCount: bigint;
   limitVal: bigint;
   deadlineTs: bigint;
+  feeWei: bigint;
+  accumulatedFees: bigint;
 }
 
 export interface ClaimedEvent {
@@ -37,6 +39,7 @@ export function useDeployAirdrop() {
   const deploy = useCallback(async (
     deadlineTs: bigint,
     claimLimit: bigint,
+    claimFeeWei: bigint,
     addresses: Address[],
   ): Promise<Address | null> => {
     if (!walletClient || !publicClient) { setError("Wallet not connected"); return null; }
@@ -46,7 +49,7 @@ export function useDeployAirdrop() {
       const hash = await walletClient.deployContract({
         abi: ABI,
         bytecode: BYTECODE,
-        args: [deadlineTs, claimLimit],
+        args: [deadlineTs, claimLimit, claimFeeWei],
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       const contractAddress = receipt.contractAddress!;
@@ -93,7 +96,7 @@ export async function fetchClaimStatus(
     abi: ABI,
     functionName: "getStatus",
     args: [userAddress],
-  }) as [boolean, boolean, boolean, boolean, bigint, bigint, bigint];
+  }) as [boolean, boolean, boolean, boolean, bigint, bigint, bigint, bigint, bigint];
 
   return {
     isEligible: result[0],
@@ -103,20 +106,24 @@ export async function fetchClaimStatus(
     currentCount: result[4],
     limitVal: result[5],
     deadlineTs: result[6],
+    feeWei: result[7],
+    accumulatedFees: result[8],
   };
 }
 
-/** Submit a claim tx. */
+/** Submit a claim tx, attaching the required fee (in wei). */
 export async function submitClaim(
   walletClient: { writeContract: (params: any) => Promise<`0x${string}`> },
   publicClient: ReturnType<typeof usePublicClient>,
   contractAddress: Address,
+  feeWei: bigint,
 ): Promise<string> {
   const hash = await walletClient.writeContract({
     address: contractAddress,
     abi: ABI,
     functionName: "claim",
     args: [],
+    value: feeWei,
   });
   await publicClient!.waitForTransactionReceipt({ hash });
   return hash;

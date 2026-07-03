@@ -25,6 +25,7 @@ export interface AirdropCampaign {
   // Claim-link mode fields
   mode: "push" | "claim";
   claimLimit?: number;       // 0 or undefined = unlimited
+  claimFeeEth?: string;      // fee in ETH string, e.g. "0.001"
   contractAddress?: string;  // deployed CloakAirdrop contract
   contractDeployed?: boolean;
 }

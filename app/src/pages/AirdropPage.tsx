@@ -2,8 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
-import { usePublicClient } from "wagmi";
-import { type Address } from "viem";
+import { usePublicClient, useWalletClient } from "wagmi";
+import { type Address, parseEther } from "viem";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
 import { ActionButton } from "../components/ActionButton";
@@ -207,6 +207,7 @@ function CreateForm({ pairs, onCreated }: {
   const [deadline, setDeadline] = useState(todayPlus(7));
   const [mode, setMode] = useState<"push" | "claim">("push");
   const [claimLimit, setClaimLimit] = useState("");
+  const [claimFeeEth, setClaimFeeEth] = useState("");
   const [importMode, setImportMode] = useState<ImportMode>("paste");
   const [rawText, setRawText] = useState("");
   const [fileError, setFileError] = useState("");
@@ -273,6 +274,7 @@ function CreateForm({ pairs, onCreated }: {
       recipients,
       mode,
       claimLimit: claimLimit ? Number(claimLimit) : undefined,
+      claimFeeEth: claimFeeEth || undefined,
     });
     onCreated(c.id);
   }
@@ -352,6 +354,30 @@ function CreateForm({ pairs, onCreated }: {
             value={claimLimit}
             onChange={(e) => setClaimLimit(e.target.value)}
           />
+        </div>
+      )}
+
+      {mode === "claim" && (
+        <div className="dc-section">
+          <label className="dc-label">
+            Claim fee (ETH)
+            <span className="dc-label-meta">— paid by user to cover your gas · leave blank for free</span>
+          </label>
+          <input
+            className="dc-input"
+            type="number"
+            min="0"
+            step="0.0001"
+            placeholder="e.g. 0.001 ≈ $3 at current ETH price"
+            value={claimFeeEth}
+            onChange={(e) => setClaimFeeEth(e.target.value)}
+          />
+          {claimFeeEth && (
+            <div className="dc-hint">
+              Each claimant pays <strong>{claimFeeEth} ETH</strong> when claiming.
+              Fees accumulate in the contract — you withdraw them any time to cover FHE transfer gas.
+            </div>
+          )}
         </div>
       )}
 
@@ -459,10 +485,13 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
   const [isRunning, setIsRunning] = useState(false);
   const cancelRef = useRef(false);
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const { deploy, status: deployStatus, error: deployError, progress } = useDeployAirdrop();
   const [copied, setCopied] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [claimQueue, setClaimQueue] = useState<{ claimant: string; position: bigint; ts: bigint }[]>([]);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawMsg, setWithdrawMsg] = useState("");
 
   useEffect(() => {
     setCampaign(airdropStore.get(initial.id) ?? initial);
@@ -527,8 +556,9 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
       ? BigInt(Math.floor(new Date(campaign.deadline).getTime() / 1000))
       : 0n;
     const limit = BigInt(campaign.claimLimit ?? 0);
+    const feeWei = campaign.claimFeeEth ? parseEther(campaign.claimFeeEth) : 0n;
     const addresses = campaign.recipients.map((r) => r.address as Address);
-    const contractAddr = await deploy(deadlineTs, limit, addresses);
+    const contractAddr = await deploy(deadlineTs, limit, feeWei, addresses);
     if (contractAddr) {
       airdropStore.update(campaign.id, { contractAddress: contractAddr, contractDeployed: true });
       setCampaign((c) => ({ ...c, contractAddress: contractAddr, contractDeployed: true }));
@@ -556,6 +586,25 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
       console.error(e);
     } finally {
       setLoadingEvents(false);
+    }
+  }
+
+  async function withdrawFees() {
+    if (!walletClient || !publicClient || !campaign.contractAddress) return;
+    setWithdrawing(true);
+    setWithdrawMsg("");
+    try {
+      const hash = await walletClient.writeContract({
+        address: campaign.contractAddress as Address,
+        abi: [{ type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [], outputs: [] }],
+        functionName: "withdraw",
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setWithdrawMsg(`Withdrawn ✓ — tx: ${hash.slice(0, 12)}…`);
+    } catch (e) {
+      setWithdrawMsg(e instanceof Error ? e.message.slice(0, 100) : "Withdraw failed");
+    } finally {
+      setWithdrawing(false);
     }
   }
 
@@ -635,6 +684,25 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
             </div>
           </div>
           <div className="cdb-link-preview">{claimLink()}</div>
+          {campaign.claimFeeEth && (
+            <div className="cdb-fee-row">
+              <span className="muted" style={{ fontSize: "0.85rem" }}>
+                💳 Claim fee: <strong>{campaign.claimFeeEth} ETH</strong> per user
+              </span>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={withdrawFees}
+                disabled={withdrawing}
+              >
+                {withdrawing ? <><span className="spinner" /> Withdrawing…</> : "Withdraw fees →"}
+              </button>
+            </div>
+          )}
+          {withdrawMsg && (
+            <div className={`tx-line ${withdrawMsg.includes("✓") ? "ok" : "err"}`} style={{ marginTop: 6 }}>
+              {withdrawMsg}
+            </div>
+          )}
           <div className="cdb-row" style={{ marginTop: 12 }}>
             <span className="muted" style={{ fontSize: "0.85rem" }}>
               {claimQueue.length} claim{claimQueue.length !== 1 ? "s" : ""} registered on-chain

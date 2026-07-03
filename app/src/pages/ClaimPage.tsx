@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
-import { type Address } from "viem";
+import { type Address, formatEther } from "viem";
 import { fetchClaimStatus, submitClaim, type ClaimStatus } from "../hooks/useCloakAirdrop";
 
 function fmtDeadline(ts: bigint): string {
@@ -42,7 +42,8 @@ export function ClaimPage() {
     setClaiming(true);
     setError("");
     try {
-      const hash = await submitClaim(walletClient, publicClient, contractAddress);
+      const feeWei = claimStatus?.feeWei ?? 0n;
+      const hash = await submitClaim(walletClient, publicClient, contractAddress, feeWei);
       setTxHash(hash);
       setClaimDone(true);
       // Refresh status
@@ -92,6 +93,11 @@ export function ClaimPage() {
           {limit > 0n && (
             <span className="claim-meta-pill">
               ⚡ FCFS · {count.toString()}/{limit.toString()} claimed
+            </span>
+          )}
+          {claimStatus && claimStatus.feeWei > 0n && (
+            <span className="claim-meta-pill claim-fee-pill">
+              💳 {formatEther(claimStatus.feeWei)} ETH claim fee
             </span>
           )}
         </div>
@@ -166,12 +172,22 @@ export function ClaimPage() {
               Your allocation will be sent as a confidential FHE-encrypted transfer —
               only you can see the amount after it arrives.
             </div>
+            {claimStatus.feeWei > 0n && (
+              <div className="claim-fee-note">
+                Requires a <strong>{formatEther(claimStatus.feeWei)} ETH</strong> fee to cover
+                the gas cost of your confidential transfer. Any excess is refunded automatically.
+              </div>
+            )}
             <button
               className="btn btn-primary claim-btn"
               onClick={doClaim}
               disabled={claiming}
             >
-              {claiming ? <><span className="spinner" /> Confirming…</> : "Claim my allocation →"}
+              {claiming
+                ? <><span className="spinner" /> Confirming…</>
+                : claimStatus.feeWei > 0n
+                  ? `Claim — pay ${formatEther(claimStatus.feeWei)} ETH →`
+                  : "Claim my allocation →"}
             </button>
           </div>
         ) : (
