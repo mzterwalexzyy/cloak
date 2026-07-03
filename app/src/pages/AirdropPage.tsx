@@ -1177,7 +1177,9 @@ export function AirdropPage() {
             transition={{ duration: 0.2 }}
           >
             {tab === "create" ? (
-              <CreateForm pairs={pairs as any} onCreated={handleCreated} />
+              <div className="distrib-card airdrop-full">
+                <CreateForm pairs={pairs as any} onCreated={handleCreated} />
+              </div>
             ) : (
               <CampaignList campaigns={campaigns} onSelect={setSelectedId} onDelete={handleDelete} />
             )}
