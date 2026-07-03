@@ -1415,7 +1415,7 @@
   gap: 20px;
 }
 .distrib-card.results-card { min-height: 320px; }
-.distrib-card.airdrop-full { max-width: 720px; }
+.distrib-card.airdrop-full { max-width: 720px; margin-left: auto; margin-right: auto; }
 
 /* tabs */
 .distrib-tabs {
@@ -1720,6 +1720,9 @@
   .import-mode-tabs { flex-direction: column; width: 100%; }
   .import-mode-tab { border-right: none; border-bottom: 1px solid #1e2429; }
   .import-mode-tab:last-child { border-bottom: none; }
+  .mode-btn .mode-desc { display: none; }
+  .mode-btn { padding: 10px 12px; gap: 8px; }
+  .mode-icon { font-size: 1.1rem; }
 }
 
 /* ── Disperse confirm modal ──────────────────────────────────────────────────── */
