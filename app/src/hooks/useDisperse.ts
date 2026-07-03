@@ -62,7 +62,7 @@ export function diagnoseAddress(addr: string): string {
 
 /** Parse a free-form recipient list (one per line: `address, amount` or `address amount`). */
 export function parseRecipientText(text: string): RecipientRow[] {
-  return text
+  const rows = text
     .split("\n")
     .map((line, i) => {
       const trimmed = line.trim();
@@ -85,6 +85,18 @@ export function parseRecipientText(text: string): RecipientRow[] {
       return { id, address: addr, amount, status: "idle" } as RecipientRow;
     })
     .filter((r): r is RecipientRow => r !== null);
+
+  // Mark duplicate addresses — keep the first occurrence, flag the rest
+  const seen = new Map<string, number>(); // normalised address → 1-based row number
+  return rows.map((row, i) => {
+    if (row.parseError) return row;
+    const key = row.address.toLowerCase();
+    if (seen.has(key)) {
+      return { ...row, parseError: `Duplicate address — already listed at row ${seen.get(key)}` };
+    }
+    seen.set(key, i + 1);
+    return row;
+  });
 }
 
 export function useDisperse(zama: ZamaSdkHandle) {

@@ -416,7 +416,10 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     airdropStore.update(campaign.id, { status: "executing" });
     setCampaign((c) => ({ ...c, status: "executing" }));
 
-    for (const r of campaign.recipients) {
+    // Always read from store so retryFailed()'s store updates are visible
+    const snapshot = airdropStore.get(campaign.id)!;
+
+    for (const r of snapshot.recipients) {
       if (cancelRef.current) break;
       if (r.status === "sent") continue;
 
@@ -443,6 +446,16 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     setCampaign(airdropStore.get(campaign.id) ?? latest);
     setIsRunning(false);
     onUpdate();
+  }
+
+  function retryFailed() {
+    campaign.recipients
+      .filter((r) => r.status === "failed")
+      .forEach((r) => {
+        airdropStore.updateRecipient(campaign.id, r.address, { status: "pending", errMsg: undefined });
+      });
+    airdropStore.update(campaign.id, { status: "draft" });
+    execute();
   }
 
   return (
@@ -481,8 +494,13 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
           <p className="done-sub">
             {failCount === 0
               ? "All allocations distributed confidentially."
-              : "Failed rows show the reason below — you can Resume to retry them."}
+              : "Failed rows show the reason below."}
           </p>
+          {failCount > 0 && (
+            <button className="btn btn-primary btn-sm" onClick={retryFailed} disabled={isRunning}>
+              Retry {failCount} failed →
+            </button>
+          )}
         </div>
       )}
 
