@@ -140,6 +140,7 @@ export function DispersePage() {
                 pairs={pairs}
                 value={selectedPair?.confidentialTokenAddress ?? ""}
                 onChange={setSelectedAddr}
+                mode="confidential"
               />
               {selectedPair && (
                 <div className="dc-hint">

@@ -13,10 +13,13 @@ export function PairSelect({
   pairs,
   value,
   onChange,
+  mode = "pair",
 }: {
   pairs: TokenWrapperPairWithMetadata[];
   value: string;
   onChange: (confidentialAddress: string) => void;
+  /** "pair" shows "USDC → cUSDC" (wrap pages). "confidential" shows just "cUSDC" (send/disperse/airdrop). */
+  mode?: "pair" | "confidential";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -42,11 +45,14 @@ export function PairSelect({
     <div className="pairsel" ref={ref}>
       <button type="button" className="pairsel-trigger" onClick={() => setOpen((o) => !o)}>
         <span className="pairsel-badges">
-          <TokenBadge symbol={selected.underlying.symbol} />
+          {mode === "pair" && <TokenBadge symbol={selected.underlying.symbol} />}
           <TokenBadge symbol={selected.confidential.symbol} confidential />
         </span>
         <span className="pairsel-label">
-          {displaySym(selected.underlying.symbol)} <span className="pairsel-arrow">→</span> {displaySym(selected.confidential.symbol)}
+          {mode === "pair"
+            ? <>{displaySym(selected.underlying.symbol)} <span className="pairsel-arrow">→</span> {displaySym(selected.confidential.symbol)}</>
+            : displaySym(selected.confidential.symbol)
+          }
         </span>
         <span className={`pairsel-chev ${open ? "up" : ""}`}>⌄</span>
       </button>
@@ -73,11 +79,14 @@ export function PairSelect({
                     }}
                   >
                     <span className="pairsel-badges sm">
-                      <TokenBadge symbol={p.underlying.symbol} />
+                      {mode === "pair" && <TokenBadge symbol={p.underlying.symbol} />}
                       <TokenBadge symbol={p.confidential.symbol} confidential />
                     </span>
                     <span className="pairsel-opt-label">
-                      {displaySym(p.underlying.symbol)} → {displaySym(p.confidential.symbol)}
+                      {mode === "pair"
+                        ? `${displaySym(p.underlying.symbol)} → ${displaySym(p.confidential.symbol)}`
+                        : displaySym(p.confidential.symbol)
+                      }
                     </span>
                     {!p.isValid && <span className="pairsel-revoked">revoked</span>}
                     {active && <span className="pairsel-check">✓</span>}

@@ -298,7 +298,7 @@ function CreateForm({ pairs, onCreated }: {
 
       <div className="dc-section">
         <label className="dc-label">Token to distribute</label>
-        <PairSelect pairs={pairs} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} />
+        <PairSelect pairs={pairs} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} mode="confidential" />
         {selectedPair && (
           <div className="dc-hint">Sending <strong>{sym}</strong> · amounts FHE-encrypted on-chain by Zama</div>
         )}
