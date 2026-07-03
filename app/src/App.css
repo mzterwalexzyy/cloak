@@ -1901,6 +1901,20 @@
 .claim-footer { margin-top: 28px; text-align: center; font-size: 0.82rem; }
 .claim-footer a { color: var(--faint); }
 .claim-footer a:hover { color: var(--muted); }
+/* ===== Add wallets panel ===== */
+.add-wallets-section { margin: 16px 0; }
+.add-wallets-toggle { border-style: dashed !important; }
+.add-wallets-toggle.active { border-color: var(--primary) !important; color: var(--primary-2); }
+.add-wallets-panel {
+  margin-top: 12px;
+  padding: 18px 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
 .claim-fee-pill { background: rgba(251,191,36,0.1); color: #fbbf24; border-color: rgba(251,191,36,0.2); }
 .claim-fee-note {
   font-size: 0.82rem; color: var(--muted); line-height: 1.5;

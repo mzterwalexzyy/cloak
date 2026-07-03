@@ -207,6 +207,7 @@ function CreateForm({ pairs, onCreated }: {
   const [deadline, setDeadline] = useState(todayPlus(7));
   const [mode, setMode] = useState<"push" | "claim">("push");
   const [claimLimit, setClaimLimit] = useState("");
+  const [feeMode, setFeeMode] = useState<"free" | "paid">("free");
   const [claimFeeEth, setClaimFeeEth] = useState("");
   const [importMode, setImportMode] = useState<ImportMode>("paste");
   const [rawText, setRawText] = useState("");
@@ -359,24 +360,42 @@ function CreateForm({ pairs, onCreated }: {
 
       {mode === "claim" && (
         <div className="dc-section">
-          <label className="dc-label">
-            Claim fee (ETH)
-            <span className="dc-label-meta">— paid by user to cover your gas · leave blank for free</span>
-          </label>
-          <input
-            className="dc-input"
-            type="number"
-            min="0"
-            step="0.0001"
-            placeholder="e.g. 0.001 ≈ $3 at current ETH price"
-            value={claimFeeEth}
-            onChange={(e) => setClaimFeeEth(e.target.value)}
-          />
-          {claimFeeEth && (
-            <div className="dc-hint">
-              Each claimant pays <strong>{claimFeeEth} ETH</strong> when claiming.
-              Fees accumulate in the contract — you withdraw them any time to cover FHE transfer gas.
-            </div>
+          <label className="dc-label">Claim fee</label>
+          <div className="seg" style={{ marginTop: 8 }}>
+            <button
+              className={`seg-btn ${feeMode === "free" ? "active" : ""}`}
+              onClick={() => { setFeeMode("free"); setClaimFeeEth(""); }}
+              type="button"
+            >
+              Free
+            </button>
+            <button
+              className={`seg-btn ${feeMode === "paid" ? "active" : ""}`}
+              onClick={() => setFeeMode("paid")}
+              type="button"
+            >
+              Charge fee
+            </button>
+          </div>
+          {feeMode === "paid" && (
+            <>
+              <input
+                className="dc-input"
+                type="number"
+                min="0"
+                step="0.0001"
+                placeholder="e.g. 0.001 ETH ≈ $3 at current price"
+                value={claimFeeEth}
+                onChange={(e) => setClaimFeeEth(e.target.value)}
+                style={{ marginTop: 10 }}
+              />
+              {claimFeeEth && (
+                <div className="dc-hint">
+                  Each claimant pays <strong>{claimFeeEth} ETH</strong> on-chain when claiming.
+                  Fees accumulate in the contract — withdraw anytime to cover FHE transfer gas costs.
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -492,6 +511,13 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
   const [claimQueue, setClaimQueue] = useState<{ claimant: string; position: bigint; ts: bigint }[]>([]);
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawMsg, setWithdrawMsg] = useState("");
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [addRawText, setAddRawText] = useState("");
+  const [addImportMode, setAddImportMode] = useState<"paste" | "file">("paste");
+  const [addFileError, setAddFileError] = useState("");
+  const [addStatus, setAddStatus] = useState<"idle" | "adding" | "done" | "error">("idle");
+  const [addMsg, setAddMsg] = useState("");
+  const addFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setCampaign(airdropStore.get(initial.id) ?? initial);
@@ -606,6 +632,82 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     } finally {
       setWithdrawing(false);
     }
+  }
+
+  async function handleAddFile(file: File) {
+    setAddFileError("");
+    try {
+      const parsed = await parseFile(file);
+      if (!parsed.length) { setAddFileError("No valid addresses found."); return; }
+      const lines = parsed.map((r) => `${r.address}${r.amount ? `, ${r.amount}` : ", 0"}`).join("\n");
+      setAddRawText(lines);
+      setAddImportMode("paste");
+    } catch (e) { setAddFileError(errMsg(e)); }
+  }
+
+  async function handleAddWallets() {
+    const parsed = parseRecipientText(addRawText);
+    const validParsed = parsed.filter((r) => !r.parseError);
+    if (!validParsed.length) { setAddMsg("No valid addresses found."); return; }
+
+    // Skip addresses already in the campaign (case-insensitive)
+    const existingSet = new Set(campaign.recipients.map((r) => r.address.toLowerCase()));
+    const newRecipients: AirdropRecipient[] = validParsed
+      .filter((r) => !existingSet.has(r.address.toLowerCase()))
+      .map((r) => ({ address: r.address, amount: r.amount, status: "pending" as const }));
+
+    if (!newRecipients.length) {
+      setAddMsg("All addresses are already in this campaign.");
+      return;
+    }
+
+    setAddStatus("adding");
+    setAddMsg("");
+
+    // Update store — reset to draft if campaign was done so new recipients get executed
+    const updatedRecipients = [...campaign.recipients, ...newRecipients];
+    const needsReset = campaign.status === "done";
+    airdropStore.update(campaign.id, {
+      recipients: updatedRecipients,
+      ...(needsReset ? { status: "draft" as const } : {}),
+    });
+    setCampaign((c) => ({
+      ...c,
+      recipients: updatedRecipients,
+      ...(needsReset ? { status: "draft" as const } : {}),
+    }));
+
+    // For claim campaigns with a deployed contract: also call addEligible on-chain
+    if (campaign.mode === "claim" && campaign.contractDeployed && campaign.contractAddress && walletClient && publicClient) {
+      const BATCH = 200;
+      const addrs = newRecipients.map((r) => r.address as Address);
+      const addEligibleAbi = [{
+        type: "function" as const, name: "addEligible",
+        stateMutability: "nonpayable" as const,
+        inputs: [{ name: "addrs", type: "address[]" }], outputs: [],
+      }];
+      try {
+        for (let i = 0; i < addrs.length; i += BATCH) {
+          const h = await walletClient.writeContract({
+            address: campaign.contractAddress as Address,
+            abi: addEligibleAbi,
+            functionName: "addEligible",
+            args: [addrs.slice(i, i + BATCH)],
+          });
+          await publicClient.waitForTransactionReceipt({ hash: h });
+        }
+      } catch (e) {
+        setAddMsg(`Local list updated but on-chain addEligible failed: ${errMsg(e)}`);
+        setAddStatus("error");
+        onUpdate();
+        return;
+      }
+    }
+
+    setAddStatus("done");
+    setAddMsg(`${newRecipients.length} address${newRecipients.length !== 1 ? "es" : ""} added.${needsReset ? " Campaign reset to draft so they can be sent." : ""}`);
+    setAddRawText("");
+    onUpdate();
   }
 
   // Auto-load events when contract is deployed
@@ -772,6 +874,100 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
       )}
 
       {deployError && <div className="tx-line err" style={{ marginTop: 8 }}>{deployError}</div>}
+
+      {/* ── Add wallets panel ── */}
+      {!isRunning && (
+        <div className="add-wallets-section">
+          <button
+            className={`btn btn-ghost btn-sm add-wallets-toggle ${showAddPanel ? "active" : ""}`}
+            onClick={() => { setShowAddPanel((v) => !v); setAddStatus("idle"); setAddMsg(""); }}
+          >
+            {showAddPanel ? "✕ Cancel" : "+ Add wallets"}
+          </button>
+
+          {showAddPanel && (
+            <div className="add-wallets-panel">
+              <div className="dc-label">
+                Add more recipients
+                <span className="dc-label-meta"> — duplicates are skipped automatically</span>
+              </div>
+
+              <div className="import-mode-tabs" style={{ marginTop: 10 }}>
+                {([["paste", "✎ Paste list"], ["file", "⬆ Upload CSV / Excel"]] as ["paste" | "file", string][]).map(([m, lbl]) => (
+                  <button
+                    key={m}
+                    className={`import-mode-tab ${addImportMode === m ? "active" : ""}`}
+                    onClick={() => setAddImportMode(m)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+
+              {addImportMode === "paste" ? (
+                <textarea
+                  className="dc-textarea"
+                  rows={5}
+                  placeholder={"0xNewAddr1, 100\n0xNewAddr2, 250"}
+                  value={addRawText}
+                  onChange={(e) => setAddRawText(e.target.value)}
+                  spellCheck={false}
+                  style={{ marginTop: 10 }}
+                />
+              ) : (
+                <div
+                  className="file-drop-zone"
+                  style={{ marginTop: 10 }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleAddFile(f); }}
+                  onClick={() => addFileRef.current?.click()}
+                >
+                  <input
+                    ref={addFileRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAddFile(f); }}
+                  />
+                  <span className="fdz-icon">📂</span>
+                  <p>Drag & drop or <u>click to browse</u></p>
+                  {addFileError && <div className="tx-line err" style={{ marginTop: 6 }}>{addFileError}</div>}
+                </div>
+              )}
+
+              {addRawText && (() => {
+                const parsed = parseRecipientText(addRawText);
+                const valid = parsed.filter((r) => !r.parseError);
+                const skip = parsed.length - valid.length;
+                const existing = new Set(campaign.recipients.map((r) => r.address.toLowerCase()));
+                const newCount = valid.filter((r) => !existing.has(r.address.toLowerCase())).length;
+                return (
+                  <div className="dc-parse-summary" style={{ marginTop: 8 }}>
+                    <span className="ok-badge">{newCount} new</span>
+                    {valid.length - newCount > 0 && <span className="muted">{valid.length - newCount} already in campaign</span>}
+                    {skip > 0 && <span className="err-badge">{skip} skipped</span>}
+                  </div>
+                );
+              })()}
+
+              {addMsg && (
+                <div className={`tx-line ${addStatus === "error" ? "err" : "ok"}`} style={{ marginTop: 8 }}>
+                  {addMsg}
+                </div>
+              )}
+
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ marginTop: 12 }}
+                onClick={handleAddWallets}
+                disabled={!addRawText.trim() || addStatus === "adding"}
+              >
+                {addStatus === "adding" ? <><span className="spinner" /> Adding…</> : "Confirm & add →"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isDone && (
         <div className={`dc-done-banner ${failCount > 0 ? "partial" : "success"}`}>
