@@ -55,6 +55,22 @@ async function parseFile(file: File): Promise<{ address: string; amount: string 
 
 // ── Dune import panel ─────────────────────────────────────────────────────────
 
+const EXAMPLE_SQL = `-- Wallets that interacted with the Zama wrapper registry on Sepolia
+-- Run this on Dune Analytics (https://dune.com/queries/new)
+-- Required columns: address · optional: tx_count, volume
+SELECT
+  "from" AS address,
+  COUNT(*) AS tx_count,
+  0 AS volume
+FROM ethereum_sepolia.transactions
+WHERE "to" IN (
+  -- Zama WrapperRegistry (Sepolia)
+  SELECT LOWER(address) FROM query_results
+  WHERE name LIKE '%wrapper%'
+)
+GROUP BY 1
+ORDER BY tx_count DESC`;
+
 function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: string }[]) => void }) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(DUNE_KEY_STORAGE) ?? "");
   const [queryId, setQueryId] = useState("");
@@ -64,6 +80,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [rows, setRows] = useState<DuneRow[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   const filtered = rows.filter(
     (r) =>
@@ -93,21 +110,42 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
   return (
     <div className="dune-panel">
       <div className="dune-header">
-        <span className="dune-logo">◈ Dune</span>
+        <div className="dune-header-top">
+          <span className="dune-logo">◈ Dune Analytics</span>
+          <div className="dune-header-actions">
+            <a
+              className="btn btn-ghost btn-xs"
+              href="https://dune.com/queries/new"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Create query ↗
+            </a>
+            <button
+              className="btn btn-ghost btn-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(EXAMPLE_SQL);
+                setSqlCopied(true);
+                setTimeout(() => setSqlCopied(false), 2000);
+              }}
+            >
+              {sqlCopied ? "Copied!" : "Copy example SQL"}
+            </button>
+          </div>
+        </div>
         <p className="dune-desc">
-          Pull a wallet list from any Dune Analytics query. Your query must return a column named
-          <code>address</code> (or <code>wallet</code> / <code>user</code>). Optional columns
-          <code>tx_count</code> and <code>volume</code> unlock the filters below.
+          Run a Dune query returning an <code>address</code> column (+ optional <code>tx_count</code> / <code>volume</code>),
+          then paste your API key and query ID below.
         </p>
       </div>
 
       <div className="dune-fields">
         <div className="dc-section">
-          <label className="dc-label">Dune API key</label>
+          <label className="dc-label">API key</label>
           <input
             className="dc-input mono-input"
             type="password"
-            placeholder="paste your key from dune.com/settings/api"
+            placeholder="from dune.com/settings/api"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
@@ -115,7 +153,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
         <div className="dc-section">
           <label className="dc-label">
             Query ID
-            <span className="dc-label-meta">— the number in the Dune URL</span>
+            <span className="dc-label-meta"> — number in Dune URL</span>
           </label>
           <input
             className="dc-input"
@@ -126,22 +164,17 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
         </div>
       </div>
 
-      <div className="dune-hint-box">
-        <strong>Suggested query for Zama:</strong> wallets that called the wrapper registry on Sepolia,
-        with columns <code>address</code>, <code>tx_count</code>, <code>volume</code>. Sort by tx_count desc.
-      </div>
-
       <div className="dune-filters">
         <div className="dc-section">
           <label className="dc-label">Min tx count</label>
           <input className="dc-input" type="number" min="0" value={minTx} onChange={(e) => setMinTx(e.target.value)} />
         </div>
         <div className="dc-section">
-          <label className="dc-label">Min volume (USD)</label>
+          <label className="dc-label">Min vol (USD)</label>
           <input className="dc-input" type="number" min="0" value={minVol} onChange={(e) => setMinVol(e.target.value)} />
         </div>
         <div className="dc-section">
-          <label className="dc-label">Amount per address</label>
+          <label className="dc-label">Amount each</label>
           <input className="dc-input" type="number" min="0" value={defAmt} onChange={(e) => setDefAmt(e.target.value)} />
         </div>
       </div>
@@ -151,14 +184,12 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
       {status === "done" && rows.length > 0 && (
         <div className="dune-results">
           <div className="dc-parse-summary">
-            <span className="ok-badge">{rows.length} addresses fetched</span>
-            {rows.length !== filtered.length && (
-              <span className="muted">→ {filtered.length} after filters</span>
-            )}
+            <span className="ok-badge">{rows.length} fetched</span>
+            {rows.length !== filtered.length && <span className="muted">→ {filtered.length} after filters</span>}
           </div>
-          <div className="dc-table-wrap" style={{ maxHeight: 200, overflowY: "auto" }}>
+          <div className="dc-table-wrap" style={{ maxHeight: 180, overflowY: "auto" }}>
             <table className="dc-table">
-              <thead><tr><th>Address</th><th>Tx count</th><th>Volume</th></tr></thead>
+              <thead><tr><th>Address</th><th>Txs</th><th>Vol</th></tr></thead>
               <tbody>
                 {filtered.slice(0, 50).map((r) => (
                   <tr key={r.address}>
@@ -177,11 +208,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
       )}
 
       <div className="dune-actions">
-        <button
-          className="btn btn-ghost btn-sm"
-          disabled={status === "loading"}
-          onClick={fetch}
-        >
+        <button className="btn btn-ghost btn-sm" disabled={status === "loading"} onClick={fetch}>
           {status === "loading" ? <><span className="spinner" /> Fetching…</> : "Fetch from Dune →"}
         </button>
         {status === "done" && filtered.length > 0 && (
@@ -280,19 +307,42 @@ function CreateForm({ pairs, onCreated }: {
     onCreated(c.id);
   }
 
+  const NAME_MAX = 60;
+  const DESC_MAX = 140;
+
   return (
     <div className="airdrop-create">
       {/* ── Campaign meta ── */}
-      <div className="ac-row">
-        <div className="dc-section" style={{ gridColumn: "1 / -1" }}>
+      <div className="dc-section">
+        <div className="dc-label-row">
           <label className="dc-label">Campaign name</label>
-          <input className="dc-input" placeholder="e.g. Season 1 Community Airdrop" value={name} onChange={(e) => setName(e.target.value)} />
+          <span className={`char-counter ${name.length >= NAME_MAX ? "at" : name.length >= NAME_MAX * 0.85 ? "near" : ""}`}>
+            {name.length}/{NAME_MAX}
+          </span>
         </div>
+        <input
+          className="dc-input"
+          placeholder="e.g. Season 1 Community Airdrop"
+          maxLength={NAME_MAX}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
 
       <div className="dc-section">
-        <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
-        <input className="dc-input" placeholder="Reward early community members with confidential tokens" value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <div className="dc-label-row">
+          <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
+          <span className={`char-counter ${desc.length >= DESC_MAX ? "at" : desc.length >= DESC_MAX * 0.85 ? "near" : ""}`}>
+            {desc.length}/{DESC_MAX}
+          </span>
+        </div>
+        <input
+          className="dc-input"
+          placeholder="Reward early community members with confidential tokens"
+          maxLength={DESC_MAX}
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+        />
       </div>
 
       {/* ── Distribution mode ── */}
@@ -342,61 +392,55 @@ function CreateForm({ pairs, onCreated }: {
       </div>
 
       {mode === "claim" && (
+        <div className="ac-row">
+          <div className="dc-section">
+            <label className="dc-label">
+              FCFS limit
+              <span className="dc-label-meta"> — blank = unlimited</span>
+            </label>
+            <input
+              className="dc-input"
+              type="number"
+              min="1"
+              maxLength={7}
+              placeholder="e.g. 500"
+              value={claimLimit}
+              onChange={(e) => setClaimLimit(e.target.value)}
+            />
+          </div>
+          <div className="dc-section">
+            <label className="dc-label">Claim fee</label>
+            <div className="seg">
+              <button
+                className={`seg-btn ${feeMode === "free" ? "active" : ""}`}
+                onClick={() => { setFeeMode("free"); setClaimFeeEth(""); }}
+                type="button"
+              >Free</button>
+              <button
+                className={`seg-btn ${feeMode === "paid" ? "active" : ""}`}
+                onClick={() => setFeeMode("paid")}
+                type="button"
+              >Charge fee</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mode === "claim" && feeMode === "paid" && (
         <div className="dc-section">
           <label className="dc-label">
-            FCFS claim limit
-            <span className="dc-label-meta">— leave blank for unlimited</span>
+            Fee amount (ETH)
+            <span className="dc-label-meta"> — collected on claim, you withdraw anytime</span>
           </label>
           <input
             className="dc-input"
             type="number"
-            min="1"
-            placeholder="e.g. 500 (first 500 wallets get a slot)"
-            value={claimLimit}
-            onChange={(e) => setClaimLimit(e.target.value)}
+            min="0"
+            step="0.0001"
+            placeholder="e.g. 0.001 ≈ $3 · covers gas for one FHE transfer"
+            value={claimFeeEth}
+            onChange={(e) => setClaimFeeEth(e.target.value)}
           />
-        </div>
-      )}
-
-      {mode === "claim" && (
-        <div className="dc-section">
-          <label className="dc-label">Claim fee</label>
-          <div className="seg" style={{ marginTop: 8 }}>
-            <button
-              className={`seg-btn ${feeMode === "free" ? "active" : ""}`}
-              onClick={() => { setFeeMode("free"); setClaimFeeEth(""); }}
-              type="button"
-            >
-              Free
-            </button>
-            <button
-              className={`seg-btn ${feeMode === "paid" ? "active" : ""}`}
-              onClick={() => setFeeMode("paid")}
-              type="button"
-            >
-              Charge fee
-            </button>
-          </div>
-          {feeMode === "paid" && (
-            <>
-              <input
-                className="dc-input"
-                type="number"
-                min="0"
-                step="0.0001"
-                placeholder="e.g. 0.001 ETH ≈ $3 at current price"
-                value={claimFeeEth}
-                onChange={(e) => setClaimFeeEth(e.target.value)}
-                style={{ marginTop: 10 }}
-              />
-              {claimFeeEth && (
-                <div className="dc-hint">
-                  Each claimant pays <strong>{claimFeeEth} ETH</strong> on-chain when claiming.
-                  Fees accumulate in the contract — withdraw anytime to cover FHE transfer gas costs.
-                </div>
-              )}
-            </>
-          )}
         </div>
       )}
 

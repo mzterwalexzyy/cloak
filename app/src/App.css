@@ -1927,3 +1927,31 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; margin-top: 10px; flex-wrap: wrap;
 }
+
+/* ── Char counters on name/desc inputs ── */
+.dc-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.char-counter { font-size: 0.75rem; font-weight: 600; color: #3a4858; transition: color 0.15s; }
+.char-counter.near { color: #f59e0b; }
+.char-counter.at   { color: #ef4444; }
+
+/* ── Dune header with action buttons ── */
+.dune-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dune-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-xs {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  height: auto;
+  line-height: 1.5;
+}
+.airdrop-create { max-width: 680px; }
