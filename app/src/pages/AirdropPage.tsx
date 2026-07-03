@@ -59,7 +59,7 @@ const EXAMPLE_SQL = `-- Wallets that interacted with USDC (ERC-20) on Ethereum m
 -- Swap the hex address for any contract you want to target
 -- Required output column: address   Optional: tx_count, volume
 SELECT
-  bytearray_to_varchar("from") AS address,
+  '0x' || to_hex("from") AS address,
   COUNT(*) AS tx_count,
   SUM(CAST(value AS double) / 1e18) AS volume
 FROM ethereum.transactions
@@ -76,16 +76,20 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
   const [minTx, setMinTx] = useState("1");
   const [minVol, setMinVol] = useState("0");
   const [defAmt, setDefAmt] = useState("100");
+  const [topN, setTopN] = useState("1000");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [rows, setRows] = useState<DuneRow[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [sqlCopied, setSqlCopied] = useState(false);
 
-  const filtered = rows.filter(
-    (r) =>
-      (r.tx_count === undefined || r.tx_count >= Number(minTx)) &&
-      (r.volume === undefined || r.volume >= Number(minVol)),
-  );
+  const limit = Math.max(1, Number(topN) || 1000);
+  const filtered = rows
+    .filter(
+      (r) =>
+        (r.tx_count === undefined || r.tx_count >= Number(minTx)) &&
+        (r.volume === undefined || r.volume >= Number(minVol)),
+    )
+    .slice(0, limit);
 
   async function fetch() {
     if (!apiKey.trim() || !queryId.trim()) { setErrorMsg("Enter both API key and query ID."); return; }
@@ -128,7 +132,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
                 setTimeout(() => setSqlCopied(false), 2000);
               }}
             >
-              {sqlCopied ? "Copied!" : "Copy example SQL"}
+              {sqlCopied ? "Copied!" : "Copy SQL"}
             </button>
           </div>
         </div>
@@ -175,6 +179,10 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
         <div className="dc-section">
           <label className="dc-label">Amount each</label>
           <input className="dc-input" type="number" min="0" value={defAmt} onChange={(e) => setDefAmt(e.target.value)} />
+        </div>
+        <div className="dc-section">
+          <label className="dc-label">Top N</label>
+          <input className="dc-input" type="number" min="1" placeholder="e.g. 1000" value={topN} onChange={(e) => setTopN(e.target.value)} />
         </div>
       </div>
 

@@ -1713,20 +1713,23 @@
 }
 .dune-hint-box strong { color: #f47c30; }
 .dune-hint-box code { color: #c8d8e8; background: #12181f; padding: 1px 5px; border-radius: 4px; }
-.dune-filters { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.dune-filters { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
 .dune-filters .dc-input { width: 100%; min-width: 0; box-sizing: border-box; }
 .dune-results { display: flex; flex-direction: column; gap: 10px; }
 .dune-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 @media (max-width: 640px) {
   .dune-fields { grid-template-columns: 1fr; }
-  .dune-filters { grid-template-columns: 1fr 1fr; }
+  .dune-filters { grid-template-columns: 1fr 1fr; } /* 2×2 on mobile */
   .import-mode-tabs { flex-direction: column; width: 100%; }
   .import-mode-tab { border-right: none; border-bottom: 1px solid #1e2429; }
   .import-mode-tab:last-child { border-bottom: none; }
   .mode-btn .mode-desc { display: none; }
   .mode-btn { padding: 10px 12px; gap: 8px; }
   .mode-icon { font-size: 1.1rem; }
+  .dune-header-top { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .dune-header-actions { width: 100%; }
+  .dune-header-actions .btn-xs { flex: 1; text-align: center; }
 }
 
 /* ── Disperse confirm modal ──────────────────────────────────────────────────── */
