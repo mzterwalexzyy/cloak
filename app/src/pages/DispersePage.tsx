@@ -183,7 +183,7 @@ export function DispersePage() {
 
             <ActionButton
               ready={validCount > 0 && !isRunning && !isDone}
-              readyHint={rows.length === 0 ? "Add recipients above" : validCount === 0 ? "Fix errors above" : undefined}
+              readyHint={rows.length === 0 ? "Add recipients above" : "Fix errors above"}
               pending={isRunning}
               pendingText={`Sending… ${sentCount}/${validCount}`}
               label={`Disperse ${sym} to ${validCount} recipient${validCount !== 1 ? "s" : ""}`}
