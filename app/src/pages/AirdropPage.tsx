@@ -390,10 +390,10 @@ function CreateForm({ pairs, onCreated }: {
 
 // ── Campaign detail ───────────────────────────────────────────────────────────
 
-function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
+function CampaignDetail({ campaign: initial, zama, onUpdate }: {
   campaign: AirdropCampaign;
   zama: ReturnType<typeof useZamaSdk>;
-  onBack: () => void;
+  onBack?: () => void;
   onUpdate: () => void;
 }) {
   const [campaign, setCampaign] = useState(initial);
