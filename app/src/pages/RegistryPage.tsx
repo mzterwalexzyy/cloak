@@ -49,7 +49,25 @@ export function RegistryPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return pairs.filter((p) => {
+    // Deduplicate: if the registry has multiple wrappers for the same underlying
+    // token address, keep only the first (most recently active takes precedence
+    // when sorted active-first below).
+    // Deduplicate: keep one wrapper per underlying symbol (active preferred over revoked).
+    // The Zama registry can have multiple wrapper versions for the same token.
+    // Deduplicate: keep one wrapper per underlying token (active before revoked).
+    // Some registry entries have both a "Mock" and non-Mock symbol for the same token
+    // (e.g. "tGBPMock" vs "tGBP"). Strip the Mock suffix so they collapse to one key.
+    const seen = new Set<string>();
+    const deduped = [...pairs]
+      .sort((a, b) => (a.isValid === b.isValid ? 0 : a.isValid ? -1 : 1))
+      .filter((p) => {
+        const key = p.underlying.symbol.toLowerCase().replace(/mock$/, "");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    return deduped.filter((p) => {
       if (status === "active" && !p.isValid) return false;
       if (status === "revoked" && p.isValid) return false;
       if (!needle) return true;
