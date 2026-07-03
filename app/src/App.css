@@ -1959,7 +1959,7 @@
 .dune-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .btn-xs {
   padding: 3px 9px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   border-radius: 6px;
   height: auto;
   line-height: 1.5;

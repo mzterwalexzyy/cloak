@@ -132,7 +132,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
                 setTimeout(() => setSqlCopied(false), 2000);
               }}
             >
-              {sqlCopied ? "Copied!" : "Copy SQL"}
+              {sqlCopied ? "Copied!" : "Copy example SQL"}
             </button>
           </div>
         </div>
