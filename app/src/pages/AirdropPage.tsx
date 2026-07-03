@@ -447,8 +447,6 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate }: {
 
   return (
     <div className="campaign-detail">
-      <button className="back-link" onClick={onBack}>← All campaigns</button>
-
       <div className="cd-head">
         <div>
           <h2 className="cd-name">{campaign.name}</h2>
@@ -593,15 +591,20 @@ export function AirdropPage() {
   return (
     <div className="distrib-page">
       <div className="distrib-header">
-        <Link to="/" className="back-link">← Home</Link>
+        {selectedCampaign
+          ? <button className="back-link" onClick={() => setSelectedId(null)}>← All campaigns</button>
+          : <Link to="/" className="back-link">← Home</Link>
+        }
         <div>
           <div className="distrib-kicker">Confidential Distribution</div>
           <h1 className="distrib-title">Airdrop</h1>
-          <p className="distrib-sub">
-            Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
-            CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
-            each recipient can see what they received.
-          </p>
+          {!selectedCampaign && (
+            <p className="distrib-sub">
+              Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
+              CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
+              each recipient can see what they received.
+            </p>
+          )}
         </div>
       </div>
 

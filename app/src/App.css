@@ -293,6 +293,7 @@
 .registry-section {
   padding: 68px clamp(24px, 9vw, 156px);
   background: #181b1d;
+  overflow: hidden; /* prevent pair cards from blowing out viewport on mobile */
 }
 .proof-section { text-align: center; }
 .proof-section h2,
@@ -410,6 +411,7 @@
 
 /* ===== Glowing pair cards (ether.fi-style) ===== */
 .pair-list.relay-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.pair-list.relay-list > * { min-width: 0; } /* prevent grid blowout */
 .glow-card {
   position: relative;
   display: flex;
@@ -1107,12 +1109,15 @@
   .amount-box input { font-size: 2rem; }
   .quick-picks { grid-template-columns: repeat(2, 1fr); }
   /* Two compact cards per row so the registry isn't an endless column. */
-  .pair-list.relay-list { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .glow-card { padding: 14px; gap: 10px; border-radius: 16px; }
-  .glow-card-symbols { font-size: 1.05rem; }
-  .glow-card-name { font-size: 0.78rem; }
-  .glow-card-foot { font-size: 0.74rem; padding-top: 10px; }
-  .glow-card .tag { padding: 3px 7px; font-size: 0.66rem; }
+  .pair-list.relay-list { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .glow-card { padding: 12px; gap: 8px; border-radius: 14px; min-width: 0; }
+  .glow-card-top { gap: 6px; flex-wrap: wrap; }
+  .glow-card-symbols { font-size: 0.95rem; gap: 5px; }
+  .glow-card-name { font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .glow-card-foot { font-size: 0.7rem; padding-top: 8px; gap: 4px; }
+  .glow-card-foot .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .glow-card .tag { padding: 2px 6px; font-size: 0.62rem; }
+  .pair-badges .token-badge { width: 22px; height: 22px; font-size: 0.6rem; }
 }
 /* ===================== Zama distinct visual pass ===================== */
 :root {
