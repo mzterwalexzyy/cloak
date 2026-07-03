@@ -6,6 +6,7 @@ import { FaucetPage } from "./pages/FaucetPage";
 import { AboutPage } from "./pages/AboutPage";
 import { DispersePage } from "./pages/DispersePage";
 import { AirdropPage } from "./pages/AirdropPage";
+import { ClaimPage } from "./pages/ClaimPage";
 import "./App.css";
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="about" element={<AboutPage />} />
         <Route path="disperse" element={<DispersePage />} />
         <Route path="airdrop" element={<AirdropPage />} />
+        <Route path="claim" element={<ClaimPage />} />
         <Route path="*" element={<RegistryPage />} />
       </Route>
     </Routes>

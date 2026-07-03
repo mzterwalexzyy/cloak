@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
+import { usePublicClient } from "wagmi";
+import { type Address } from "viem";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
 import { ActionButton } from "../components/ActionButton";
@@ -10,6 +12,7 @@ import { parseRecipientText } from "../hooks/useDisperse";
 import { airdropStore, type AirdropCampaign, type AirdropRecipient } from "../lib/airdropStore";
 import { fetchDuneQuery, DUNE_KEY_STORAGE, type DuneRow } from "../lib/duneImport";
 import { displaySym, shortAddr, explorerTx, toBaseUnits } from "../lib/format";
+import { useDeployAirdrop, fetchClaimEvents } from "../hooks/useCloakAirdrop";
 
 type Tab = "create" | "campaigns";
 type ImportMode = "paste" | "file" | "dune";
@@ -202,6 +205,8 @@ function CreateForm({ pairs, onCreated }: {
   const [selectedAddr, setSelectedAddr] = useState("");
   const [startDate, setStartDate] = useState(todayPlus(0));
   const [deadline, setDeadline] = useState(todayPlus(7));
+  const [mode, setMode] = useState<"push" | "claim">("push");
+  const [claimLimit, setClaimLimit] = useState("");
   const [importMode, setImportMode] = useState<ImportMode>("paste");
   const [rawText, setRawText] = useState("");
   const [fileError, setFileError] = useState("");
@@ -266,6 +271,8 @@ function CreateForm({ pairs, onCreated }: {
       startDate,
       deadline,
       recipients,
+      mode,
+      claimLimit: claimLimit ? Number(claimLimit) : undefined,
     });
     onCreated(c.id);
   }
@@ -285,16 +292,68 @@ function CreateForm({ pairs, onCreated }: {
         <input className="dc-input" placeholder="Reward early community members with confidential tokens" value={desc} onChange={(e) => setDesc(e.target.value)} />
       </div>
 
+      {/* ── Distribution mode ── */}
+      <div className="dc-section">
+        <label className="dc-label">Distribution mode</label>
+        <div className="mode-toggle">
+          <button
+            className={`mode-btn ${mode === "push" ? "active" : ""}`}
+            onClick={() => setMode("push")}
+            type="button"
+          >
+            <span className="mode-icon">⚡</span>
+            <span>
+              <strong>Send Now</strong>
+              <span className="mode-desc">You push tokens to all addresses directly</span>
+            </span>
+          </button>
+          <button
+            className={`mode-btn ${mode === "claim" ? "active" : ""}`}
+            onClick={() => setMode("claim")}
+            type="button"
+          >
+            <span className="mode-icon">🔗</span>
+            <span>
+              <strong>Claim Link</strong>
+              <span className="mode-desc">Users claim themselves via a shareable link</span>
+            </span>
+          </button>
+        </div>
+        {mode === "claim" && (
+          <div className="dc-hint" style={{ marginTop: 8 }}>
+            A smart contract enforces FCFS order and the deadline on-chain. You deploy it once,
+            share the link, then send FHE tokens to whoever claimed.
+          </div>
+        )}
+      </div>
+
       <div className="ac-row">
         <div className="dc-section">
           <label className="dc-label">Start date</label>
           <input className="dc-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="dc-section">
-          <label className="dc-label">Claim deadline</label>
+          <label className="dc-label">{mode === "claim" ? "Claim deadline (on-chain)" : "Claim deadline"}</label>
           <input className="dc-input" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
         </div>
       </div>
+
+      {mode === "claim" && (
+        <div className="dc-section">
+          <label className="dc-label">
+            FCFS claim limit
+            <span className="dc-label-meta">— leave blank for unlimited</span>
+          </label>
+          <input
+            className="dc-input"
+            type="number"
+            min="1"
+            placeholder="e.g. 500 (first 500 wallets get a slot)"
+            value={claimLimit}
+            onChange={(e) => setClaimLimit(e.target.value)}
+          />
+        </div>
+      )}
 
       <div className="dc-section">
         <label className="dc-label">Token to distribute</label>
@@ -382,7 +441,7 @@ function CreateForm({ pairs, onCreated }: {
         disabled={!name.trim() || validRows.length === 0}
         onClick={handleCreate}
       >
-        Save campaign draft →
+        {mode === "claim" ? "Save draft → Deploy contract next" : "Save campaign draft →"}
       </button>
     </div>
   );
@@ -399,6 +458,11 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
   const [campaign, setCampaign] = useState(initial);
   const [isRunning, setIsRunning] = useState(false);
   const cancelRef = useRef(false);
+  const publicClient = usePublicClient();
+  const { deploy, status: deployStatus, error: deployError, progress } = useDeployAirdrop();
+  const [copied, setCopied] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [claimQueue, setClaimQueue] = useState<{ claimant: string; position: bigint; ts: bigint }[]>([]);
 
   useEffect(() => {
     setCampaign(airdropStore.get(initial.id) ?? initial);
@@ -458,6 +522,54 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     execute();
   }
 
+  async function deployContract() {
+    const deadlineTs = campaign.deadline
+      ? BigInt(Math.floor(new Date(campaign.deadline).getTime() / 1000))
+      : 0n;
+    const limit = BigInt(campaign.claimLimit ?? 0);
+    const addresses = campaign.recipients.map((r) => r.address as Address);
+    const contractAddr = await deploy(deadlineTs, limit, addresses);
+    if (contractAddr) {
+      airdropStore.update(campaign.id, { contractAddress: contractAddr, contractDeployed: true });
+      setCampaign((c) => ({ ...c, contractAddress: contractAddr, contractDeployed: true }));
+      onUpdate();
+    }
+  }
+
+  function claimLink() {
+    return `${window.location.origin}/claim?c=${campaign.contractAddress}`;
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(claimLink());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function loadClaimEvents() {
+    if (!publicClient || !campaign.contractAddress) return;
+    setLoadingEvents(true);
+    try {
+      const events = await fetchClaimEvents(publicClient, campaign.contractAddress as Address);
+      setClaimQueue(events);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  // Auto-load events when contract is deployed
+  useEffect(() => {
+    if (campaign.contractDeployed && campaign.contractAddress && claimQueue.length === 0) {
+      loadClaimEvents();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign.contractDeployed, campaign.contractAddress]);
+
+  const isClaimMode = campaign.mode === "claim";
+  const isDeploying = deployStatus === "deploying" || deployStatus === "adding";
+
   return (
     <div className="campaign-detail">
       <div className="cd-head">
@@ -466,13 +578,17 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
           {campaign.description && <p className="cd-desc">{campaign.description}</p>}
           <div className="cd-meta">
             <span className={`badge ${statusCls(campaign.status)}`}>{statusLabel(campaign.status)}</span>
+            <span className={`badge ${isClaimMode ? "badge-claim" : "badge-idle"}`}>
+              {isClaimMode ? "🔗 Claim link" : "⚡ Send now"}
+            </span>
             <span className="muted">
               · {sym} · {total} recipients
               · {campaign.startDate} → {campaign.deadline}
             </span>
           </div>
         </div>
-        {!isDone && (
+        {/* Push mode: launch/resume button */}
+        {!isClaimMode && !isDone && (
           <ActionButton
             ready={!isRunning}
             readyHint="Loading…"
@@ -483,7 +599,111 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
             className="btn btn-primary"
           />
         )}
+        {/* Claim mode: deploy contract or show link */}
+        {isClaimMode && !campaign.contractDeployed && (
+          <button
+            className="btn btn-primary"
+            onClick={deployContract}
+            disabled={isDeploying}
+          >
+            {deployStatus === "deploying" ? <><span className="spinner" /> Deploying contract…</>
+              : deployStatus === "adding" ? <><span className="spinner" /> Adding addresses ({progress.batch}/{progress.total})…</>
+              : "Deploy claim contract →"}
+          </button>
+        )}
       </div>
+
+      {/* Claim mode: contract deployed UI */}
+      {isClaimMode && campaign.contractDeployed && campaign.contractAddress && (
+        <div className="claim-deploy-box">
+          <div className="cdb-row">
+            <div>
+              <div className="cdb-label">Claim contract</div>
+              <div className="mono cdb-addr">{campaign.contractAddress}</div>
+            </div>
+            <div className="cdb-actions">
+              <button className="btn btn-ghost btn-sm" onClick={copyLink}>
+                {copied ? "Copied!" : "Copy claim link"}
+              </button>
+              <a
+                className="btn btn-ghost btn-sm"
+                href={`https://sepolia.etherscan.io/address/${campaign.contractAddress}`}
+                target="_blank" rel="noreferrer"
+              >
+                Etherscan ↗
+              </a>
+            </div>
+          </div>
+          <div className="cdb-link-preview">{claimLink()}</div>
+          <div className="cdb-row" style={{ marginTop: 12 }}>
+            <span className="muted" style={{ fontSize: "0.85rem" }}>
+              {claimQueue.length} claim{claimQueue.length !== 1 ? "s" : ""} registered on-chain
+            </span>
+            <div className="cdb-actions">
+              <button className="btn btn-ghost btn-sm" onClick={loadClaimEvents} disabled={loadingEvents}>
+                {loadingEvents ? <><span className="spinner" /> Loading…</> : "Refresh claims"}
+              </button>
+              {claimQueue.length > 0 && !isDone && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    // Override recipients with claim queue order then run
+                    const ordered: AirdropRecipient[] = claimQueue.map((ev) => {
+                      const existing = campaign.recipients.find(
+                        (r) => r.address.toLowerCase() === ev.claimant.toLowerCase()
+                      );
+                      return existing ?? { address: ev.claimant, amount: "0", status: "pending" };
+                    });
+                    airdropStore.update(campaign.id, { recipients: ordered });
+                    setCampaign((c) => ({ ...c, recipients: ordered }));
+                    setTimeout(execute, 0);
+                  }}
+                  disabled={isRunning}
+                >
+                  Process {claimQueue.length} claims →
+                </button>
+              )}
+            </div>
+          </div>
+          {claimQueue.length > 0 && (
+            <div className="dc-table-wrap" style={{ marginTop: 12 }}>
+              <table className="dc-table">
+                <thead><tr><th>#</th><th>Claimant</th><th>Claimed at</th><th>Status</th></tr></thead>
+                <tbody>
+                  {claimQueue.map((ev) => {
+                    const r = campaign.recipients.find(
+                      (x) => x.address.toLowerCase() === ev.claimant.toLowerCase()
+                    );
+                    const claimedAt = new Date(Number(ev.ts) * 1000).toLocaleString();
+                    return (
+                      <tr key={ev.claimant} className={r?.status === "sent" ? "row-ok" : r?.status === "failed" ? "row-fail" : ""}>
+                        <td className="mono muted">{ev.position.toString()}</td>
+                        <td className="mono">{shortAddr(ev.claimant)}</td>
+                        <td className="mono muted" style={{ fontSize: "0.8rem" }}>{claimedAt}</td>
+                        <td>
+                          {r?.status === "sent" ? (
+                            <span className="badge badge-ok">
+                              {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
+                            </span>
+                          ) : r?.status === "failed" ? (
+                            <span className="badge badge-err">failed</span>
+                          ) : r?.status === "pending" ? (
+                            <span className="badge badge-pending"><span className="spinner" /> sending</span>
+                          ) : (
+                            <span className="badge badge-idle">queued</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {deployError && <div className="tx-line err" style={{ marginTop: 8 }}>{deployError}</div>}
 
       {isDone && (
         <div className={`dc-done-banner ${failCount > 0 ? "partial" : "success"}`}>

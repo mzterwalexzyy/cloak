@@ -22,6 +22,11 @@ export interface AirdropCampaign {
   createdAt: string;
   executedAt?: string;
   status: "draft" | "executing" | "done";
+  // Claim-link mode fields
+  mode: "push" | "claim";
+  claimLimit?: number;       // 0 or undefined = unlimited
+  contractAddress?: string;  // deployed CloakAirdrop contract
+  contractDeployed?: boolean;
 }
 
 const KEY = "cloak-airdrop-campaigns";
@@ -49,6 +54,7 @@ export const airdropStore = {
     const all = load();
     const c: AirdropCampaign = {
       ...campaign,
+      mode: campaign.mode ?? "push",
       id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       createdAt: new Date().toISOString(),
       status: "draft",
