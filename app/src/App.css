@@ -392,8 +392,10 @@
   border-radius: 12px;
   background: #111315;
   border: 1px solid #30343b;
+  width: 100%;
 }
 .seg-btn {
+  flex: 1;
   min-height: 40px;
   padding: 0 16px;
   border: 0;
@@ -403,6 +405,7 @@
   font: inherit;
   font-weight: 850;
   cursor: pointer;
+  text-align: center;
 }
 .seg-btn.active { background: #20242a; color: #fff; }
 
@@ -1957,4 +1960,4 @@
   height: auto;
   line-height: 1.5;
 }
-.airdrop-create { max-width: 680px; }
+.airdrop-create { width: 100%; }

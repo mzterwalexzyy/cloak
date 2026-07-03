@@ -1171,15 +1171,13 @@ export function AirdropPage() {
 
           <motion.div
             key={tab}
-            className="distrib-card"
+            className={`distrib-card${tab === "create" ? " airdrop-full" : ""}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
           >
             {tab === "create" ? (
-              <div className="distrib-card airdrop-full">
-                <CreateForm pairs={pairs as any} onCreated={handleCreated} />
-              </div>
+              <CreateForm pairs={pairs as any} onCreated={handleCreated} />
             ) : (
               <CampaignList campaigns={campaigns} onSelect={setSelectedId} onDelete={handleDelete} />
             )}
