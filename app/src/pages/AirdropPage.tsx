@@ -55,21 +55,21 @@ async function parseFile(file: File): Promise<{ address: string; amount: string 
 
 // ── Dune import panel ─────────────────────────────────────────────────────────
 
-const EXAMPLE_SQL = `-- Wallets that interacted with the Zama wrapper registry on Sepolia
--- Run this on Dune Analytics (https://dune.com/queries/new)
--- Required columns: address · optional: tx_count, volume
+const EXAMPLE_SQL = `-- Wallets that interacted with a contract on Ethereum mainnet
+-- NOTE: Dune does not index testnets (Sepolia etc.) — use this for mainnet campaigns
+-- Replace 0xYourContractAddress with your token or protocol address
+-- Required output column: address   Optional: tx_count, volume
 SELECT
   "from" AS address,
   COUNT(*) AS tx_count,
-  0 AS volume
-FROM ethereum_sepolia.transactions
-WHERE "to" IN (
-  -- Zama WrapperRegistry (Sepolia)
-  SELECT LOWER(address) FROM query_results
-  WHERE name LIKE '%wrapper%'
-)
+  SUM(CAST(value AS double) / 1e18) AS volume
+FROM ethereum.transactions
+WHERE "to" = LOWER('0xYourContractAddress')
+  AND block_time >= now() - interval '90' day
+  AND success = true
 GROUP BY 1
-ORDER BY tx_count DESC`;
+ORDER BY tx_count DESC
+LIMIT 10000`;
 
 function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: string }[]) => void }) {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(DUNE_KEY_STORAGE) ?? "");
