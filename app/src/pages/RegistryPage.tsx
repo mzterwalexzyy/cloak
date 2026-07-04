@@ -137,6 +137,25 @@ export function RegistryPage() {
             <Link to="/app" data-tour="start" className="btn btn-primary btn-big">Start Wrapping</Link>
             <Link to="/about" className="btn btn-light btn-big">Read the flow ↗</Link>
           </motion.div>
+
+          <motion.div
+            className="hero-feature-cards"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.88, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {([
+              { icon: "🔒", title: "Privacy first", body: "FHE-encrypted balances. Hidden by default." },
+              { icon: "🔗", title: "Fully composable", body: "Use in protocols without revealing data." },
+              { icon: "⚡", title: "One click wrap", body: "Wrap any supported pair in seconds." },
+            ] as const).map((f) => (
+              <div key={f.title} className="hero-feature-card">
+                <span className="hfc-icon">{f.icon}</span>
+                <strong>{f.title}</strong>
+                <span>{f.body}</span>
+              </div>
+            ))}
+          </motion.div>
         </div>
 
         <motion.div

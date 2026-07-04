@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useRef, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
@@ -7,6 +7,14 @@ import { ActionButton } from "../components/ActionButton";
 import { PairSelect } from "../components/PairSelect";
 import { displaySym, shortAddr, explorerTx } from "../lib/format";
 import { Link } from "react-router-dom";
+
+type ImportMode = "csv" | "paste";
+
+async function parseCsvFile(file: File): Promise<string> {
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() && !l.startsWith("#"));
+  return lines.join("\n");
+}
 
 const PLACEHOLDER_TEXT = `# Paste one recipient per line: address, amount
 0xAbCd...1234, 50
@@ -67,7 +75,10 @@ export function DispersePage() {
   const [selectedAddr, setSelectedAddr] = useState("");
   const selectedPair = pairs.find((p) => p.confidentialTokenAddress === selectedAddr) ?? pairs[0];
 
+  const [importMode, setImportMode] = useState<ImportMode>("paste");
+  const [skipInvalid, setSkipInvalid] = useState(true);
   const [rawText, setRawText] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   const rows = useMemo(() => parseRecipientText(rawText), [rawText]);
 
   const { disperseStatus, runDisperse, rows: liveRows, setRows } = useDisperse(zama);
@@ -86,8 +97,16 @@ export function DispersePage() {
 
   const displayRows = isDone || isRunning ? liveRows : rows;
 
-  function handleDisperseClick() {
-    setShowConfirm(true);
+  async function handleFile(file: File) {
+    const text = await parseCsvFile(file);
+    setRawText(text);
+    setImportMode("paste");
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
   }
 
   function handleConfirm() {
@@ -113,56 +132,88 @@ export function DispersePage() {
         )}
       </AnimatePresence>
 
-      <div className="distrib-page">
-        <div className="distrib-header">
+      <div className="disperse-page">
+        <div className="disperse-page-head">
           <Link to="/" className="back-link">← Home</Link>
-          <div>
-            <div className="distrib-kicker">Confidential Distribution</div>
-            <h1 className="distrib-title">Disperse</h1>
-            <p className="distrib-sub">
-              Send confidential ERC-7984 tokens to multiple recipients in one session.
-              Amounts are encrypted — recipients see what they received, no one else does.
-            </p>
-          </div>
+          <h1>Disperse</h1>
+          <p>Send FHE-encrypted tokens to multiple addresses in one session.</p>
         </div>
 
-        <div className="distrib-layout">
+        <div className="disperse-layout">
           {/* ── Left: inputs ── */}
           <motion.div
-            className="distrib-card"
+            className="disperse-left"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
             <div className="dc-section">
-              <label className="dc-label">Confidential token</label>
+              <label className="dc-label">Token to disperse</label>
               <PairSelect
                 pairs={pairs}
                 value={selectedPair?.confidentialTokenAddress ?? ""}
                 onChange={setSelectedAddr}
                 mode="confidential"
               />
-              {selectedPair && (
-                <div className="dc-hint">
-                  Sending <strong>{sym}</strong> — balances encrypted on-chain
-                </div>
-              )}
             </div>
 
             <div className="dc-section">
-              <label className="dc-label">
-                Recipients
-                <span className="dc-label-meta">one per line · <code>address, amount</code></span>
+              <label className="dc-label">Import method</label>
+              <div className="disperse-method-tabs">
+                <button className={`dmt-btn ${importMode === "csv" ? "active" : ""}`} onClick={() => setImportMode("csv")}>CSV</button>
+                <button className={`dmt-btn ${importMode === "paste" ? "active" : ""}`} onClick={() => setImportMode("paste")}>Paste</button>
+                {rawText && <button className="dmt-btn dmt-done" onClick={() => setRawText("")}>Clear</button>}
+              </div>
+            </div>
+
+            {importMode === "csv" ? (
+              <div
+                className="disperse-drop-zone"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileRef.current?.click()}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.txt"
+                  style={{ display: "none" }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                />
+                <span className="ddz-icon">📂</span>
+                <p>Drop CSV file here</p>
+                <p className="ddz-sub">or click to browse</p>
+              </div>
+            ) : (
+              <div className="dc-section">
+                <textarea
+                  className="dc-textarea"
+                  rows={9}
+                  placeholder={PLACEHOLDER_TEXT}
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  disabled={isRunning}
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            <div className="disperse-format-row">
+              <span className="dc-label">Format</span>
+              <code className="disperse-format-code">Address,Amount</code>
+            </div>
+
+            <div className="disperse-options-row">
+              <span className="dc-label">Options</span>
+              <label className="disperse-toggle-label">
+                <span>Skip invalid rows</span>
+                <button
+                  className={`disperse-toggle ${skipInvalid ? "on" : ""}`}
+                  onClick={() => setSkipInvalid((v) => !v)}
+                  type="button"
+                  aria-pressed={skipInvalid}
+                />
               </label>
-              <textarea
-                className="dc-textarea"
-                rows={10}
-                placeholder={PLACEHOLDER_TEXT}
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                disabled={isRunning}
-                spellCheck={false}
-              />
             </div>
 
             {rows.length > 0 && (
@@ -186,9 +237,14 @@ export function DispersePage() {
               readyHint={rows.length === 0 ? "Add recipients above" : "Fix errors above"}
               pending={isRunning}
               pendingText={`Sending… ${sentCount}/${validCount}`}
-              label={`Disperse ${sym} to ${validCount} recipient${validCount !== 1 ? "s" : ""}`}
-              onAction={handleDisperseClick}
+              label={`Approve ${sym}`}
+              onAction={() => setShowConfirm(true)}
             />
+            {validCount > 0 && !isRunning && !isDone && (
+              <button className="btn btn-primary btn-block" style={{ marginTop: 8 }} onClick={() => setShowConfirm(true)}>
+                Send all ({validCount})
+              </button>
+            )}
 
             {isDone && (
               <div className={`dc-done-banner ${failCount > 0 || errorCount > 0 ? "partial" : "success"}`}>
@@ -200,30 +256,37 @@ export function DispersePage() {
                 <p className="done-sub">
                   {failCount === 0 && errorCount === 0
                     ? "All transfers sent confidentially."
-                    : errorCount > 0 && failCount === 0
-                    ? "Skipped rows had invalid addresses — see reasons in the table."
                     : "See the results table for skipped and failed rows."}
                 </p>
-                <button className="btn btn-ghost btn-sm" onClick={() => {
-                  setRows([]);
-                  setRawText("");
-                }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setRows([]); setRawText(""); }}>
                   New disperse
                 </button>
               </div>
             )}
           </motion.div>
 
-          {/* ── Right: preview/results table ── */}
+          {/* ── Right: preview/results ── */}
           <motion.div
-            className="distrib-card results-card"
+            className="disperse-right"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.08 }}
           >
-            <div className="dc-label">
-              {isDone || isRunning ? "Results" : "Preview"}
+            <div className="disperse-preview-head">
+              <span className="dc-label">{isDone || isRunning ? "Results" : "Preview"}</span>
+              {displayRows.length > 0 && !isRunning && !isDone && (
+                <span className="disperse-preview-count">— {validCount} recipients</span>
+              )}
             </div>
+
+            {isRunning && (
+              <div className="disperse-progress" style={{ marginBottom: 12 }}>
+                <div className="dp-bar-wrap">
+                  <div className="dp-bar" style={{ width: `${progressPct}%` }} />
+                </div>
+                <span className="dp-label">{sentCount} / {validCount} sent</span>
+              </div>
+            )}
 
             {displayRows.length === 0 ? (
               <div className="dc-empty">
@@ -235,7 +298,6 @@ export function DispersePage() {
                 <table className="dc-table">
                   <thead>
                     <tr>
-                      <th>#</th>
                       <th>Address</th>
                       <th>Amount</th>
                       <th>Status</th>
@@ -245,7 +307,6 @@ export function DispersePage() {
                     {displayRows.map((row, i) => (
                       <Fragment key={row.id}>
                         <tr className={row.parseError ? "row-err" : row.status === "ok" ? "row-ok" : row.status === "error" ? "row-fail" : ""}>
-                          <td className="mono muted">{i + 1}</td>
                           <td className="mono">{shortAddr(row.address || "—")}</td>
                           <td className="mono">{row.amount || "—"} {!row.parseError ? sym : ""}</td>
                           <td>
@@ -253,9 +314,7 @@ export function DispersePage() {
                               <span className="badge badge-skip">skipped</span>
                             ) : row.status === "ok" ? (
                               <span className="badge badge-ok">
-                                {row.txHash
-                                  ? <a href={explorerTx(row.txHash)} target="_blank" rel="noreferrer">sent ↗</a>
-                                  : "sent ✓"}
+                                {row.txHash ? <a href={explorerTx(row.txHash)} target="_blank" rel="noreferrer">OK ↗</a> : "OK"}
                               </span>
                             ) : row.status === "error" ? (
                               <span className="badge badge-err">failed</span>
@@ -268,10 +327,7 @@ export function DispersePage() {
                         </tr>
                         {(row.parseError || row.errMsg) && (
                           <tr className="row-reason">
-                            <td />
-                            <td colSpan={3} className="row-reason-text">
-                              {row.parseError ?? row.errMsg}
-                            </td>
+                            <td colSpan={3} className="row-reason-text">{row.parseError ?? row.errMsg}</td>
                           </tr>
                         )}
                       </Fragment>
@@ -283,9 +339,13 @@ export function DispersePage() {
 
             {displayRows.length > 0 && !isRunning && !isDone && (
               <div className="dc-total">
-                Total: <strong>{totalAmt.toFixed(4)} {sym}</strong> across {validCount} recipients
+                Total: <strong>{totalAmt.toFixed(4)} {sym}</strong> to {validCount} addresses
               </div>
             )}
+
+            <div className="disperse-footer-note">
+              ⓘ Encrypted transfers. Balances remain hidden.
+            </div>
           </motion.div>
         </div>
       </div>

@@ -1328,18 +1328,13 @@ export function AirdropPage() {
   }
 
   return (
-    <div className="distrib-page">
+    <div className="airdrop-page">
       {!selectedCampaign && (
-        <div className="distrib-header">
-          <div className="distrib-kicker-row">
-            <Link to="/" className="back-link">← Home</Link>
-            <div className="distrib-kicker">Confidential Distribution</div>
-          </div>
-          <h1 className="distrib-title">Airdrop</h1>
-          <p className="distrib-sub">
-            Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
-            CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
-            each recipient can see what they received.
+        <div className="airdrop-page-head">
+          <Link to="/" className="back-link">← Home</Link>
+          <h1>Airdrop</h1>
+          <p>
+            Create and manage airdrop campaigns with saved recipient lists.
           </p>
         </div>
       )}
@@ -1350,13 +1345,19 @@ export function AirdropPage() {
         </div>
       ) : (
         <>
-          <div className="distrib-tabs">
-            {([["campaigns", "My Campaigns"], ["create", "New Campaign"]] as [Tab, string][]).map(([t, label]) => (
-              <button key={t} className={`distrib-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-                {label}
-                {t === "campaigns" && campaigns.length > 0 && <span className="tab-count">{campaigns.length}</span>}
-              </button>
-            ))}
+          <div className="airdrop-page-actions">
+            <button
+              className={`btn btn-primary ${tab === "create" ? "active" : ""}`}
+              onClick={() => setTab("create")}
+            >
+              + New campaign
+            </button>
+            <button
+              className={`btn btn-ghost ${tab === "campaigns" ? "active" : ""}`}
+              onClick={() => setTab("campaigns")}
+            >
+              Import list
+            </button>
           </div>
 
           <motion.div
@@ -1372,6 +1373,30 @@ export function AirdropPage() {
               <CampaignList campaigns={campaigns} onSelect={setSelectedId} onDelete={handleDelete} />
             )}
           </motion.div>
+
+          {tab === "campaigns" && (
+            <div className="campaign-flow">
+              <div className="campaign-flow-title">Campaign flow</div>
+              <div className="campaign-flow-steps">
+                {[
+                  { num: "1", label: "Configure", sub: "Name, token, recipients" },
+                  { num: "2", label: "Review", sub: "Check addresses & amounts" },
+                  { num: "3", label: "Send", sub: "Execute airdrop" },
+                ].map((s, i, arr) => (
+                  <>
+                    <div key={s.num} className="cf-flow-step">
+                      <div className="cf-flow-num">{s.num}</div>
+                      <div className="cf-flow-text">
+                        <strong>{s.label}</strong>
+                        <span>{s.sub}</span>
+                      </div>
+                    </div>
+                    {i < arr.length - 1 && <span className="cf-flow-arrow">→</span>}
+                  </>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
