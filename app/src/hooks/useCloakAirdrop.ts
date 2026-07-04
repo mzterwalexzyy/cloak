@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { usePublicClient, useWalletClient } from "wagmi";
-import { decodeEventLog, type Address } from "viem";
+import { parseAbiItem, type Address } from "viem";
 import artifact from "../lib/cloakAirdropArtifact.json";
 
 const ABI = artifact.abi as any[];
@@ -41,7 +41,7 @@ export function useDeployAirdrop() {
     claimLimit: bigint,
     claimFeeWei: bigint,
     addresses: Address[],
-  ): Promise<Address | null> => {
+  ): Promise<{ address: Address; blockNumber: bigint } | null> => {
     if (!walletClient || !publicClient) { setError("Wallet not connected"); return null; }
     setStatus("deploying");
     setError("");
@@ -74,7 +74,7 @@ export function useDeployAirdrop() {
       }
 
       setStatus("done");
-      return contractAddress;
+      return { address: contractAddress, blockNumber: receipt.blockNumber };
     } catch (e) {
       setError(e instanceof Error ? e.message.slice(0, 200) : String(e));
       setStatus("error");
@@ -129,29 +129,36 @@ export async function submitClaim(
   return hash;
 }
 
-/** Fetch all ClaimRegistered events from the contract (ordered by block/logIndex). */
+const CLAIM_EVENT = parseAbiItem(
+  "event ClaimRegistered(address indexed claimant, uint256 indexed position, uint256 ts)"
+);
+
+/** Fetch all ClaimRegistered events from the contract (ordered by position). */
 export async function fetchClaimEvents(
   publicClient: ReturnType<typeof usePublicClient>,
   contractAddress: Address,
+  deploymentBlock?: bigint,
 ): Promise<ClaimedEvent[]> {
+  // Use stored deployment block so we don't query from genesis (RPC range limit).
+  // Fall back to 200 000 blocks ago (~28 days on Sepolia) if unknown.
+  let fromBlock = deploymentBlock;
+  if (!fromBlock) {
+    const latest = await publicClient!.getBlockNumber();
+    fromBlock = latest > 200_000n ? latest - 200_000n : 0n;
+  }
+
   const logs = await publicClient!.getLogs({
     address: contractAddress,
-    fromBlock: 0n,
+    event: CLAIM_EVENT,
+    fromBlock,
     toBlock: "latest",
   });
 
   return logs
     .map((log) => {
-      try {
-        const decoded = decodeEventLog({ abi: ABI, ...log }) as {
-          eventName: string;
-          args: { claimant: Address; position: bigint; ts: bigint };
-        };
-        if (decoded.eventName !== "ClaimRegistered") return null;
-        return { claimant: decoded.args.claimant, position: decoded.args.position, ts: decoded.args.ts };
-      } catch {
-        return null;
-      }
+      const args = log.args as { claimant: Address; position: bigint; ts: bigint };
+      if (!args?.claimant) return null;
+      return { claimant: args.claimant, position: args.position, ts: args.ts };
     })
     .filter((e): e is ClaimedEvent => e !== null)
     .sort((a, b) => Number(a.position - b.position));

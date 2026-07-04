@@ -610,10 +610,15 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     const limit = BigInt(campaign.claimLimit ?? 0);
     const feeWei = campaign.claimFeeEth ? parseEther(campaign.claimFeeEth) : 0n;
     const addresses = campaign.recipients.map((r) => r.address as Address);
-    const contractAddr = await deploy(deadlineTs, limit, feeWei, addresses);
-    if (contractAddr) {
-      airdropStore.update(campaign.id, { contractAddress: contractAddr, contractDeployed: true });
-      setCampaign((c) => ({ ...c, contractAddress: contractAddr, contractDeployed: true }));
+    const result = await deploy(deadlineTs, limit, feeWei, addresses);
+    if (result) {
+      const patch = {
+        contractAddress: result.address,
+        contractDeployed: true,
+        deploymentBlock: result.blockNumber.toString(),
+      };
+      airdropStore.update(campaign.id, patch);
+      setCampaign((c) => ({ ...c, ...patch }));
       onUpdate();
     }
   }
@@ -632,7 +637,8 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
     if (!publicClient || !campaign.contractAddress) return;
     setLoadingEvents(true);
     try {
-      const events = await fetchClaimEvents(publicClient, campaign.contractAddress as Address);
+      const fromBlock = campaign.deploymentBlock ? BigInt(campaign.deploymentBlock) : undefined;
+      const events = await fetchClaimEvents(publicClient, campaign.contractAddress as Address, fromBlock);
       setClaimQueue(events);
     } catch (e) {
       console.error(e);

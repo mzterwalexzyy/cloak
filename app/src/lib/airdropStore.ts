@@ -26,8 +26,9 @@ export interface AirdropCampaign {
   mode: "push" | "claim";
   claimLimit?: number;       // 0 or undefined = unlimited
   claimFeeEth?: string;      // fee in ETH string, e.g. "0.001"
-  contractAddress?: string;  // deployed CloakAirdrop contract
+  contractAddress?: string;   // deployed CloakAirdrop contract
   contractDeployed?: boolean;
+  deploymentBlock?: string;   // block number at deploy time (stringified bigint)
 }
 
 const KEY = "cloak-airdrop-campaigns";
