@@ -1729,7 +1729,7 @@
   .mode-icon { font-size: 1.1rem; }
   .dune-header-top { flex-direction: column; align-items: flex-start; gap: 8px; }
   .dune-header-actions { width: 100%; }
-  .dune-header-actions .btn-xs { flex: 1; text-align: center; }
+  .dune-header-actions .btn-xs { flex: 1; text-align: center; white-space: normal; }
 }
 
 /* ── Disperse confirm modal ──────────────────────────────────────────────────── */
@@ -1937,6 +1937,42 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; margin-top: 10px; flex-wrap: wrap;
 }
+
+/* ── Multi-step form ── */
+.cf-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 8px;
+}
+.cf-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.4;
+}
+.cf-step.active { opacity: 1; }
+.cf-step.done { opacity: 0.7; }
+.cf-step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  display: grid; place-items: center;
+  font-size: 0.75rem; font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.cf-step.active .cf-step-num {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.cf-step.done .cf-step-num { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.4); color: #34d399; }
+.cf-step-label { font-size: 0.82rem; font-weight: 700; color: var(--muted); }
+.cf-step.active .cf-step-label { color: #fff; }
+.cf-step-line { flex: 1; height: 1px; background: var(--border); margin: 0 12px; }
+.cf-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
 
 /* ── Char counters on name/desc inputs ── */
 .dc-label-row {

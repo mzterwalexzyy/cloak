@@ -181,7 +181,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
           <input className="dc-input" type="number" min="0" value={defAmt} onChange={(e) => setDefAmt(e.target.value)} />
         </div>
         <div className="dc-section">
-          <label className="dc-label">Top N</label>
+          <label className="dc-label">Top N wallets</label>
           <input className="dc-input" type="number" min="1" placeholder="e.g. 1000" value={topN} onChange={(e) => setTopN(e.target.value)} />
         </div>
       </div>
@@ -316,229 +316,204 @@ function CreateForm({ pairs, onCreated }: {
 
   const NAME_MAX = 60;
   const DESC_MAX = 140;
+  const [step, setStep] = useState<1 | 2>(1);
 
   return (
     <div className="airdrop-create">
-      {/* ── Campaign meta ── */}
-      <div className="dc-section">
-        <div className="dc-label-row">
-          <label className="dc-label">Campaign name</label>
-          <span className={`char-counter ${name.length >= NAME_MAX ? "at" : name.length >= NAME_MAX * 0.85 ? "near" : ""}`}>
-            {name.length}/{NAME_MAX}
-          </span>
+      {/* ── Step indicator ── */}
+      <div className="cf-steps">
+        <div className={`cf-step ${step === 1 ? "active" : "done"}`}>
+          <span className="cf-step-num">{step > 1 ? "✓" : "1"}</span>
+          <span className="cf-step-label">Campaign details</span>
         </div>
-        <input
-          className="dc-input"
-          placeholder="e.g. Season 1 Community Airdrop"
-          maxLength={NAME_MAX}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-
-      <div className="dc-section">
-        <div className="dc-label-row">
-          <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
-          <span className={`char-counter ${desc.length >= DESC_MAX ? "at" : desc.length >= DESC_MAX * 0.85 ? "near" : ""}`}>
-            {desc.length}/{DESC_MAX}
-          </span>
-        </div>
-        <input
-          className="dc-input"
-          placeholder="Reward early community members with confidential tokens"
-          maxLength={DESC_MAX}
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-        />
-      </div>
-
-      {/* ── Distribution mode ── */}
-      <div className="dc-section">
-        <label className="dc-label">Distribution mode</label>
-        <div className="mode-toggle">
-          <button
-            className={`mode-btn ${mode === "push" ? "active" : ""}`}
-            onClick={() => setMode("push")}
-            type="button"
-          >
-            <span className="mode-icon">⚡</span>
-            <span>
-              <strong>Send Now</strong>
-              <span className="mode-desc">You push tokens to all addresses directly</span>
-            </span>
-          </button>
-          <button
-            className={`mode-btn ${mode === "claim" ? "active" : ""}`}
-            onClick={() => setMode("claim")}
-            type="button"
-          >
-            <span className="mode-icon">🔗</span>
-            <span>
-              <strong>Claim Link</strong>
-              <span className="mode-desc">Users claim themselves via a shareable link</span>
-            </span>
-          </button>
-        </div>
-        {mode === "claim" && (
-          <div className="dc-hint" style={{ marginTop: 8 }}>
-            A smart contract enforces FCFS order and the deadline on-chain. You deploy it once,
-            share the link, then send FHE tokens to whoever claimed.
-          </div>
-        )}
-      </div>
-
-      <div className="ac-row">
-        <div className="dc-section">
-          <label className="dc-label">Start date</label>
-          <input className="dc-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        </div>
-        <div className="dc-section">
-          <label className="dc-label">{mode === "claim" ? "Claim deadline (on-chain)" : "Claim deadline"}</label>
-          <input className="dc-input" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        <div className="cf-step-line" />
+        <div className={`cf-step ${step === 2 ? "active" : step > 2 ? "done" : ""}`}>
+          <span className="cf-step-num">2</span>
+          <span className="cf-step-label">Recipients</span>
         </div>
       </div>
 
-      {mode === "claim" && (
-        <div className="ac-row">
+      {step === 1 && (
+        <>
+          {/* ── Campaign meta ── */}
           <div className="dc-section">
-            <label className="dc-label">
-              FCFS limit
-              <span className="dc-label-meta"> — blank = unlimited</span>
-            </label>
+            <div className="dc-label-row">
+              <label className="dc-label">Campaign name</label>
+              <span className={`char-counter ${name.length >= NAME_MAX ? "at" : name.length >= NAME_MAX * 0.85 ? "near" : ""}`}>
+                {name.length}/{NAME_MAX}
+              </span>
+            </div>
             <input
               className="dc-input"
-              type="number"
-              min="1"
-              maxLength={7}
-              placeholder="e.g. 500"
-              value={claimLimit}
-              onChange={(e) => setClaimLimit(e.target.value)}
+              placeholder="e.g. Season 1 Community Airdrop"
+              maxLength={NAME_MAX}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
+
           <div className="dc-section">
-            <label className="dc-label">Claim fee</label>
-            <div className="seg">
-              <button
-                className={`seg-btn ${feeMode === "free" ? "active" : ""}`}
-                onClick={() => { setFeeMode("free"); setClaimFeeEth(""); }}
-                type="button"
-              >Free</button>
-              <button
-                className={`seg-btn ${feeMode === "paid" ? "active" : ""}`}
-                onClick={() => setFeeMode("paid")}
-                type="button"
-              >Charge fee</button>
+            <div className="dc-label-row">
+              <label className="dc-label">Description <span className="dc-label-meta">(optional)</span></label>
+              <span className={`char-counter ${desc.length >= DESC_MAX ? "at" : desc.length >= DESC_MAX * 0.85 ? "near" : ""}`}>
+                {desc.length}/{DESC_MAX}
+              </span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {mode === "claim" && feeMode === "paid" && (
-        <div className="dc-section">
-          <label className="dc-label">
-            Fee amount (ETH)
-            <span className="dc-label-meta"> — collected on claim, you withdraw anytime</span>
-          </label>
-          <input
-            className="dc-input"
-            type="number"
-            min="0"
-            step="0.0001"
-            placeholder="e.g. 0.001 ≈ $3 · covers gas for one FHE transfer"
-            value={claimFeeEth}
-            onChange={(e) => setClaimFeeEth(e.target.value)}
-          />
-        </div>
-      )}
-
-      <div className="dc-section">
-        <label className="dc-label">Token to distribute</label>
-        <PairSelect pairs={pairs} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} mode="confidential" />
-        {selectedPair && (
-          <div className="dc-hint">Sending <strong>{sym}</strong> · amounts FHE-encrypted on-chain by Zama</div>
-        )}
-      </div>
-
-      {/* ── Import mode tabs ── */}
-      <div className="dc-section">
-        <div className="import-mode-tabs">
-          {([
-            ["paste", "✎ Paste list"],
-            ["file", "⬆ Upload CSV / Excel"],
-            ["dune", "◈ Import from Dune"],
-          ] as [ImportMode, string][]).map(([m, label]) => (
-            <button
-              key={m}
-              className={`import-mode-tab ${importMode === m ? "active" : ""}`}
-              onClick={() => setImportMode(m)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {importMode === "paste" && (
-          <>
-            <div className="dc-label" style={{ marginTop: 12 }}>
-              Recipients
-              <span className="dc-label-meta">one per line · <code>address, amount</code></span>
-            </div>
-            <textarea
-              className="dc-textarea"
-              rows={7}
-              placeholder={"0xRecipient1, 100\n0xRecipient2, 250\n0xRecipient3, 75"}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              spellCheck={false}
-            />
-          </>
-        )}
-
-        {importMode === "file" && (
-          <div
-            className={`file-drop-zone`}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            onClick={() => fileRef.current?.click()}
-          >
             <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              className="dc-input"
+              placeholder="Reward early community members with confidential tokens"
+              maxLength={DESC_MAX}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
             />
-            <span className="fdz-icon">📂</span>
-            <p>Drag & drop or <u>click to browse</u></p>
-            <p className="fdz-sub">Accepts .csv, .xlsx, .xls · Needs an <code>address</code> column · optional <code>amount</code> column</p>
-            {fileError && <div className="tx-line err" style={{ marginTop: 8 }}>{fileError}</div>}
           </div>
-        )}
 
-        {importMode === "dune" && (
-          <DunePanel onImport={handleDuneImport} />
-        )}
-      </div>
+          {/* ── Distribution mode ── */}
+          <div className="dc-section">
+            <label className="dc-label">Distribution mode</label>
+            <div className="mode-toggle">
+              <button className={`mode-btn ${mode === "push" ? "active" : ""}`} onClick={() => setMode("push")} type="button">
+                <span className="mode-icon">⚡</span>
+                <span>
+                  <strong>Send Now</strong>
+                  <span className="mode-desc">You push tokens to all addresses directly</span>
+                </span>
+              </button>
+              <button className={`mode-btn ${mode === "claim" ? "active" : ""}`} onClick={() => setMode("claim")} type="button">
+                <span className="mode-icon">🔗</span>
+                <span>
+                  <strong>Claim Link</strong>
+                  <span className="mode-desc">Users claim themselves via a shareable link</span>
+                </span>
+              </button>
+            </div>
+            {mode === "claim" && (
+              <div className="dc-hint" style={{ marginTop: 8 }}>
+                A smart contract enforces FCFS order and the deadline on-chain. You deploy it once,
+                share the link, then send FHE tokens to whoever claimed.
+              </div>
+            )}
+          </div>
 
-      {rows.length > 0 && importMode === "paste" && (
-        <div className="dc-parse-summary">
-          <span className="ok-badge">{validRows.length} valid</span>
-          {rows.length - validRows.length > 0 && <span className="err-badge">{rows.length - validRows.length} errors</span>}
-          {validRows.length > 0 && (
-            <span className="muted">· total {validRows.reduce((s, r) => s + (Number(r.amount) || 0), 0).toFixed(2)} {sym}</span>
+          <div className="ac-row">
+            <div className="dc-section">
+              <label className="dc-label">Start date</label>
+              <input className="dc-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="dc-section">
+              <label className="dc-label">{mode === "claim" ? "Claim deadline (on-chain)" : "Claim deadline"}</label>
+              <input className="dc-input" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+            </div>
+          </div>
+
+          {mode === "claim" && (
+            <div className="ac-row">
+              <div className="dc-section">
+                <label className="dc-label">FCFS limit<span className="dc-label-meta"> — blank = unlimited</span></label>
+                <input className="dc-input" type="number" min="1" placeholder="e.g. 500" value={claimLimit} onChange={(e) => setClaimLimit(e.target.value)} />
+              </div>
+              <div className="dc-section">
+                <label className="dc-label">Claim fee</label>
+                <div className="seg">
+                  <button className={`seg-btn ${feeMode === "free" ? "active" : ""}`} onClick={() => { setFeeMode("free"); setClaimFeeEth(""); }} type="button">Free</button>
+                  <button className={`seg-btn ${feeMode === "paid" ? "active" : ""}`} onClick={() => setFeeMode("paid")} type="button">Charge fee</button>
+                </div>
+              </div>
+            </div>
           )}
-        </div>
+
+          {mode === "claim" && feeMode === "paid" && (
+            <div className="dc-section">
+              <label className="dc-label">Fee amount (ETH)<span className="dc-label-meta"> — collected on claim, you withdraw anytime</span></label>
+              <input className="dc-input" type="number" min="0" step="0.0001" placeholder="e.g. 0.001 ≈ $3 · covers gas for one FHE transfer" value={claimFeeEth} onChange={(e) => setClaimFeeEth(e.target.value)} />
+            </div>
+          )}
+
+          <div className="dc-section">
+            <label className="dc-label">Token to distribute</label>
+            <PairSelect pairs={pairs} value={selectedPair?.confidentialTokenAddress ?? ""} onChange={setSelectedAddr} mode="confidential" />
+            {selectedPair && <div className="dc-hint">Sending <strong>{sym}</strong> · amounts FHE-encrypted on-chain by Zama</div>}
+          </div>
+
+          <button
+            className="btn btn-primary btn-full"
+            disabled={!name.trim()}
+            onClick={() => { setFormError(""); setStep(2); }}
+          >
+            Next: Add recipients →
+          </button>
+        </>
       )}
 
-      {formError && <div className="tx-line err">{formError}</div>}
+      {step === 2 && (
+        <>
+          {/* ── Import mode tabs ── */}
+          <div className="dc-section">
+            <div className="import-mode-tabs">
+              {([
+                ["paste", "✎ Paste list"],
+                ["file", "⬆ Upload CSV / Excel"],
+                ["dune", "◈ Import from Dune"],
+              ] as [ImportMode, string][]).map(([m, label]) => (
+                <button key={m} className={`import-mode-tab ${importMode === m ? "active" : ""}`} onClick={() => setImportMode(m)}>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-      <button
-        className="btn btn-primary btn-full"
-        disabled={!name.trim() || validRows.length === 0}
-        onClick={handleCreate}
-      >
-        {mode === "claim" ? "Save draft → Deploy contract next" : "Save campaign draft →"}
-      </button>
+            {importMode === "paste" && (
+              <>
+                <div className="dc-label" style={{ marginTop: 12 }}>
+                  Recipients<span className="dc-label-meta">one per line · <code>address, amount</code></span>
+                </div>
+                <textarea
+                  className="dc-textarea"
+                  rows={7}
+                  placeholder={"0xRecipient1, 100\n0xRecipient2, 250\n0xRecipient3, 75"}
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  spellCheck={false}
+                />
+              </>
+            )}
+
+            {importMode === "file" && (
+              <div className="file-drop-zone" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} onClick={() => fileRef.current?.click()}>
+                <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+                <span className="fdz-icon">📂</span>
+                <p>Drag & drop or <u>click to browse</u></p>
+                <p className="fdz-sub">Accepts .csv, .xlsx, .xls · Needs an <code>address</code> column · optional <code>amount</code> column</p>
+                {fileError && <div className="tx-line err" style={{ marginTop: 8 }}>{fileError}</div>}
+              </div>
+            )}
+
+            {importMode === "dune" && <DunePanel onImport={handleDuneImport} />}
+          </div>
+
+          {rows.length > 0 && importMode === "paste" && (
+            <div className="dc-parse-summary">
+              <span className="ok-badge">{validRows.length} valid</span>
+              {rows.length - validRows.length > 0 && <span className="err-badge">{rows.length - validRows.length} errors</span>}
+              {validRows.length > 0 && (
+                <span className="muted">· total {validRows.reduce((s, r) => s + (Number(r.amount) || 0), 0).toFixed(2)} {sym}</span>
+              )}
+            </div>
+          )}
+
+          {formError && <div className="tx-line err">{formError}</div>}
+
+          <div className="cf-nav">
+            <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
+            <button
+              className="btn btn-primary"
+              disabled={validRows.length === 0}
+              onClick={handleCreate}
+            >
+              {mode === "claim" ? "Save draft → Deploy contract next" : "Save campaign draft →"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
