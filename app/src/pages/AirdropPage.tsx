@@ -696,24 +696,19 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
       return;
     }
 
+    // For deployed claim contracts, addEligible on-chain is mandatory — fail early if wallet not ready
+    const needsOnChain = campaign.mode === "claim" && campaign.contractDeployed && campaign.contractAddress;
+    if (needsOnChain && (!walletClient || !publicClient)) {
+      setAddMsg("Wallet not connected — connect the admin wallet first.");
+      return;
+    }
+
     setAddStatus("adding");
     setAddMsg("");
 
-    // Update store — reset to draft if campaign was done so new recipients get executed
-    const updatedRecipients = [...campaign.recipients, ...newRecipients];
-    const needsReset = campaign.status === "done";
-    airdropStore.update(campaign.id, {
-      recipients: updatedRecipients,
-      ...(needsReset ? { status: "draft" as const } : {}),
-    });
-    setCampaign((c) => ({
-      ...c,
-      recipients: updatedRecipients,
-      ...(needsReset ? { status: "draft" as const } : {}),
-    }));
-
-    // For claim campaigns with a deployed contract: also call addEligible on-chain
-    if (campaign.mode === "claim" && campaign.contractDeployed && campaign.contractAddress && walletClient && publicClient) {
+    // For claim campaigns: do the on-chain addEligible BEFORE updating local state,
+    // so the UI never shows "added" when the contract didn't accept them.
+    if (needsOnChain && walletClient && publicClient) {
       const BATCH = 200;
       const addrs = newRecipients.map((r) => r.address as Address);
       const addEligibleAbi = [{
@@ -732,15 +727,27 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
           await publicClient.waitForTransactionReceipt({ hash: h });
         }
       } catch (e) {
-        setAddMsg(`Local list updated but on-chain addEligible failed: ${errMsg(e)}`);
+        setAddMsg(`On-chain addEligible failed — addresses NOT added. Make sure you're connected with the admin wallet that deployed the contract. Error: ${errMsg(e)}`);
         setAddStatus("error");
-        onUpdate();
         return;
       }
     }
 
+    // Update local store only after on-chain succeeds (or for non-claim campaigns)
+    const updatedRecipients = [...campaign.recipients, ...newRecipients];
+    const needsReset = campaign.status === "done";
+    airdropStore.update(campaign.id, {
+      recipients: updatedRecipients,
+      ...(needsReset ? { status: "draft" as const } : {}),
+    });
+    setCampaign((c) => ({
+      ...c,
+      recipients: updatedRecipients,
+      ...(needsReset ? { status: "draft" as const } : {}),
+    }));
+
     setAddStatus("done");
-    setAddMsg(`${newRecipients.length} address${newRecipients.length !== 1 ? "es" : ""} added.${needsReset ? " Campaign reset to draft so they can be sent." : ""}`);
+    setAddMsg(`${newRecipients.length} address${newRecipients.length !== 1 ? "es" : ""} added${needsOnChain ? " & registered on-chain" : ""}.${needsReset ? " Campaign reset to draft so they can be sent." : ""}`);
     setAddRawText("");
     onUpdate();
   }
