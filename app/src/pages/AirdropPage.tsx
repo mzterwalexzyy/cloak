@@ -1119,18 +1119,28 @@ export function AirdropPage() {
 
   const reload = useCallback(() => setAllCampaigns(airdropStore.list()), []);
 
-  // Only show campaigns owned by the connected wallet (or legacy campaigns with no owner)
+  // Claim ownership of any unowned legacy campaigns the first time a wallet connects.
+  // This runs once per wallet address — whoever connects first gets the orphans.
+  useEffect(() => {
+    if (!address) return;
+    const me = address.toLowerCase();
+    const orphans = airdropStore.list().filter((c) => !c.creatorAddress);
+    if (!orphans.length) return;
+    orphans.forEach((c) => airdropStore.update(c.id, { creatorAddress: me }));
+    reload();
+  }, [address, reload]);
+
+  // Only show campaigns owned by the connected wallet
   const campaigns = useMemo(() => {
     if (!address) return [];
     const me = address.toLowerCase();
-    return allCampaigns.filter((c) => !c.creatorAddress || c.creatorAddress === me);
+    return allCampaigns.filter((c) => c.creatorAddress === me);
   }, [allCampaigns, address]);
 
   const selectedCampaign = selectedId ? allCampaigns.find((c) => c.id === selectedId) : null;
 
   // True only when connected wallet matches the campaign creator
-  const isAdmin = !selectedCampaign?.creatorAddress
-    || selectedCampaign.creatorAddress === address?.toLowerCase();
+  const isAdmin = selectedCampaign?.creatorAddress === address?.toLowerCase();
 
   function handleCreated(id: string) { reload(); setSelectedId(id); }
   function handleDelete(id: string) {
