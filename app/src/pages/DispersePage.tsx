@@ -304,7 +304,7 @@ export function DispersePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayRows.map((row, i) => (
+                    {displayRows.map((row) => (
                       <Fragment key={row.id}>
                         <tr className={row.parseError ? "row-err" : row.status === "ok" ? "row-ok" : row.status === "error" ? "row-fail" : ""}>
                           <td className="mono">{shortAddr(row.address || "—")}</td>
