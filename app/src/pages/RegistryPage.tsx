@@ -100,7 +100,7 @@ export function RegistryPage() {
             Zama FHE wrappers on Sepolia
           </motion.div>
           <h1>
-            {(["Wrap tokens.", "Hide balances."] as const).map((line, i) => (
+            {(["Privacy by default.", "Composability"] as const).map((line, i) => (
               <motion.span
                 key={line}
                 className="hero-line"
@@ -117,7 +117,7 @@ export function RegistryPage() {
               animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
               transition={{ duration: 0.6, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
             >
-              <span>Stay composable.</span>
+              <span>by design.</span>
             </motion.span>
           </h1>
           <motion.p
@@ -125,8 +125,8 @@ export function RegistryPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.58, ease: [0.22, 1, 0.36, 1] }}
           >
-            A focused interface for the official Zama Wrapper Registry. Pick a token, wrap it into
-            an ERC-7984 confidential asset, decrypt only for yourself, then send hidden amounts.
+            Wrap tokens in FHE. Hide balances. Stay composable. The complete ERC-7984 privacy
+            lifecycle — wrap, decrypt, send, unwrap — powered by the official Zama Wrapper Registry.
           </motion.p>
           <motion.div
             className="hero-buttons"

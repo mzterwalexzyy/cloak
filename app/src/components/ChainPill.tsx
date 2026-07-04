@@ -6,7 +6,7 @@ import { SEPOLIA_CHAIN_ID } from "../lib/wagmi";
  * shows "Wrong network" (red) and switches/adds Sepolia on click. On Sepolia →
  * shows the green status.
  */
-export function ChainPill() {
+export function ChainPill({ compact }: { compact?: boolean } = {}) {
   const { isConnected } = useAccount();
   const { connect, connectors, isPending: connecting } = useConnect();
   const chainId = useChainId();
@@ -39,6 +39,20 @@ export function ChainPill() {
         : wrong
           ? "Wrong network"
           : "Sepolia";
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className={`chain-pill chain-pill-compact ${wrong ? "chain-wrong" : ""}`}
+        disabled={switching || connecting}
+        title={wrong ? "Wrong network — click to switch to Sepolia" : label}
+        onClick={onClick}
+      >
+        <span className="chain-dot" />
+      </button>
+    );
+  }
 
   return (
     <button

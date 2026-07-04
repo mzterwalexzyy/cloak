@@ -1,26 +1,26 @@
 :root {
-  /* Surfaces — deep navy */
+  /* Surfaces — deep navy/black */
   --bg: #03080f;
-  --bg-2: #060d18;
-  --surface: #0a1220;
-  --surface-2: #0f1a2e;
-  --surface-3: #152038;
-  --border: rgba(56, 189, 248, 0.08);
-  --border-strong: rgba(56, 189, 248, 0.15);
+  --bg-2: #050b14;
+  --surface: #080f1a;
+  --surface-2: #0d1520;
+  --surface-3: #111d2c;
+  --border: rgba(0, 217, 126, 0.07);
+  --border-strong: rgba(0, 217, 126, 0.15);
 
   /* Text */
   --text: #eef4ff;
-  --muted: #7a90b4;
-  --faint: #4a607a;
+  --muted: #6a8090;
+  --faint: #3d5060;
 
-  /* Brand — blue */
-  --primary: #1d70f5;
-  --primary-2: #38bdf8;
-  --primary-ink: #ffffff;
-  --primary-soft: rgba(29, 112, 245, 0.14);
-  --conf: #7dd3fc;
-  --ok: #34d399;
-  --ok-soft: rgba(52, 211, 153, 0.14);
+  /* Brand — green */
+  --primary: #00d97e;
+  --primary-2: #34d399;
+  --primary-ink: #021a0d;
+  --primary-soft: rgba(0, 217, 126, 0.13);
+  --conf: #6ee7b7;
+  --ok: #00d97e;
+  --ok-soft: rgba(0, 217, 126, 0.13);
   --bad: #f87171;
   --bad-soft: rgba(248, 113, 113, 0.14);
   --warn: #fbbf24;
@@ -29,7 +29,7 @@
   --radius-sm: 11px;
   --radius-lg: 22px;
   --shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.9);
-  --glow: 0 0 40px -8px rgba(29, 112, 245, 0.55);
+  --glow: 0 0 40px -8px rgba(0, 217, 126, 0.5);
 
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: dark;
@@ -46,8 +46,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(900px 500px at 80% -10%, rgba(29, 112, 245, 0.1), transparent 60%),
-    radial-gradient(700px 500px at 0% 0%, rgba(56, 189, 248, 0.06), transparent 55%),
+    radial-gradient(900px 500px at 80% -10%, rgba(0, 217, 126, 0.06), transparent 60%),
+    radial-gradient(700px 500px at 0% 0%, rgba(52, 211, 153, 0.04), transparent 55%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -58,7 +58,7 @@ a { color: var(--primary-2); text-decoration: none; }
 a:hover { color: var(--primary); }
 
 code { background: var(--surface-2); padding: 2px 7px; border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: 0.85em; }
-::selection { background: rgba(29, 112, 245, 0.35); }
+::selection { background: rgba(0, 217, 126, 0.3); }
 
 /* Buttons */
 .btn {
@@ -80,8 +80,9 @@ code { background: var(--surface-2); padding: 2px 7px; border-radius: 6px; font-
   background: linear-gradient(135deg, var(--primary), var(--primary-2));
   color: var(--primary-ink);
   border: none;
+  font-weight: 700;
 }
-.btn-primary:hover:not(:disabled) { box-shadow: var(--glow); background: linear-gradient(135deg, var(--primary-2), var(--primary)); }
+.btn-primary:hover:not(:disabled) { box-shadow: var(--glow); }
 .btn-ghost { background: transparent; }
 .btn-warn { background: linear-gradient(135deg, var(--warn), #f59e0b); color: #2a1c00; border: none; }
 .btn-lg { padding: 13px 26px; font-size: 1rem; }
