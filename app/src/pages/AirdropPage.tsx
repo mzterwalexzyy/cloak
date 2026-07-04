@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
-import { usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { type Address, parseEther } from "viem";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
@@ -230,9 +230,10 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
 
 // ── Create form ───────────────────────────────────────────────────────────────
 
-function CreateForm({ pairs, onCreated }: {
+function CreateForm({ pairs, onCreated, creatorAddress }: {
   pairs: Parameters<typeof PairSelect>[0]["pairs"];
   onCreated: (id: string) => void;
+  creatorAddress?: string;
 }) {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
@@ -310,6 +311,7 @@ function CreateForm({ pairs, onCreated }: {
       mode,
       claimLimit: claimLimit ? Number(claimLimit) : undefined,
       claimFeeEth: claimFeeEth || undefined,
+      creatorAddress: creatorAddress?.toLowerCase(),
     });
     onCreated(c.id);
   }
@@ -520,11 +522,12 @@ function CreateForm({ pairs, onCreated }: {
 
 // ── Campaign detail ───────────────────────────────────────────────────────────
 
-function CampaignDetail({ campaign: initial, zama, onUpdate }: {
+function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
   campaign: AirdropCampaign;
   zama: ReturnType<typeof useZamaSdk>;
   onBack?: () => void;
   onUpdate: () => void;
+  isAdmin: boolean;
 }) {
   const [campaign, setCampaign] = useState(initial);
   const [isRunning, setIsRunning] = useState(false);
@@ -770,8 +773,8 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
             </span>
           </div>
         </div>
-        {/* Push mode: launch/resume button */}
-        {!isClaimMode && !isDone && (
+        {/* Push mode: launch/resume button — admin only */}
+        {isAdmin && !isClaimMode && !isDone && (
           <ActionButton
             ready={!isRunning}
             readyHint="Loading…"
@@ -782,8 +785,8 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
             className="btn btn-primary"
           />
         )}
-        {/* Claim mode: deploy contract or show link */}
-        {isClaimMode && !campaign.contractDeployed && (
+        {/* Claim mode: deploy contract — admin only */}
+        {isAdmin && isClaimMode && !campaign.contractDeployed && (
           <button
             className="btn btn-primary"
             onClick={deployContract}
@@ -823,13 +826,15 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
               <span className="muted" style={{ fontSize: "0.85rem" }}>
                 💳 Claim fee: <strong>{campaign.claimFeeEth} ETH</strong> per user
               </span>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={withdrawFees}
-                disabled={withdrawing}
-              >
-                {withdrawing ? <><span className="spinner" /> Withdrawing…</> : "Withdraw fees →"}
-              </button>
+              {isAdmin && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={withdrawFees}
+                  disabled={withdrawing}
+                >
+                  {withdrawing ? <><span className="spinner" /> Withdrawing…</> : "Withdraw fees →"}
+                </button>
+              )}
             </div>
           )}
           {withdrawMsg && (
@@ -845,7 +850,7 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
               <button className="btn btn-ghost btn-sm" onClick={loadClaimEvents} disabled={loadingEvents}>
                 {loadingEvents ? <><span className="spinner" /> Loading…</> : "Refresh claims"}
               </button>
-              {claimQueue.length > 0 && !isDone && (
+              {isAdmin && claimQueue.length > 0 && !isDone && (
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => {
@@ -907,8 +912,8 @@ function CampaignDetail({ campaign: initial, zama, onUpdate }: {
 
       {deployError && <div className="tx-line err" style={{ marginTop: 8 }}>{deployError}</div>}
 
-      {/* ── Add wallets panel ── */}
-      {!isRunning && (
+      {/* ── Add wallets panel — admin only ── */}
+      {isAdmin && !isRunning && (
         <div className="add-wallets-section">
           <button
             className={`btn btn-ghost btn-sm add-wallets-toggle ${showAddPanel ? "active" : ""}`}
@@ -1106,13 +1111,26 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
 export function AirdropPage() {
   const { data } = useRegistryPairs();
   const zama = useZamaSdk();
+  const { address } = useAccount();
   const pairs = useMemo(() => data?.items ?? [], [data]);
   const [tab, setTab] = useState<Tab>("campaigns");
-  const [campaigns, setCampaigns] = useState<AirdropCampaign[]>(() => airdropStore.list());
+  const [allCampaigns, setAllCampaigns] = useState<AirdropCampaign[]>(() => airdropStore.list());
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const reload = useCallback(() => setCampaigns(airdropStore.list()), []);
-  const selectedCampaign = selectedId ? campaigns.find((c) => c.id === selectedId) : null;
+  const reload = useCallback(() => setAllCampaigns(airdropStore.list()), []);
+
+  // Only show campaigns owned by the connected wallet (or legacy campaigns with no owner)
+  const campaigns = useMemo(() => {
+    if (!address) return [];
+    const me = address.toLowerCase();
+    return allCampaigns.filter((c) => !c.creatorAddress || c.creatorAddress === me);
+  }, [allCampaigns, address]);
+
+  const selectedCampaign = selectedId ? allCampaigns.find((c) => c.id === selectedId) : null;
+
+  // True only when connected wallet matches the campaign creator
+  const isAdmin = !selectedCampaign?.creatorAddress
+    || selectedCampaign.creatorAddress === address?.toLowerCase();
 
   function handleCreated(id: string) { reload(); setSelectedId(id); }
   function handleDelete(id: string) {
@@ -1144,7 +1162,7 @@ export function AirdropPage() {
 
       {selectedCampaign ? (
         <div className="distrib-card airdrop-full">
-          <CampaignDetail campaign={selectedCampaign} zama={zama} onBack={() => setSelectedId(null)} onUpdate={reload} />
+          <CampaignDetail campaign={selectedCampaign} zama={zama} onBack={() => setSelectedId(null)} onUpdate={reload} isAdmin={isAdmin} />
         </div>
       ) : (
         <>
@@ -1165,7 +1183,7 @@ export function AirdropPage() {
             transition={{ duration: 0.2 }}
           >
             {tab === "create" ? (
-              <CreateForm pairs={pairs as any} onCreated={handleCreated} />
+              <CreateForm pairs={pairs as any} onCreated={handleCreated} creatorAddress={address} />
             ) : (
               <CampaignList campaigns={campaigns} onSelect={setSelectedId} onDelete={handleDelete} />
             )}

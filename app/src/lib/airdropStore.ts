@@ -26,6 +26,7 @@ export interface AirdropCampaign {
   mode: "push" | "claim";
   claimLimit?: number;       // 0 or undefined = unlimited
   claimFeeEth?: string;      // fee in ETH string, e.g. "0.001"
+  creatorAddress?: string;    // wallet that created the campaign (lowercase)
   contractAddress?: string;   // deployed CloakAirdrop contract
   contractDeployed?: boolean;
   deploymentBlock?: string;   // block number at deploy time (stringified bigint)
