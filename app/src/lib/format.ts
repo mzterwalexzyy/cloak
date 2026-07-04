@@ -6,7 +6,7 @@ export function shortAddr(addr: string): string {
 
 /** Drop the noisy "Mock" suffix for display, keeping a leading c (confidential). */
 export function displaySym(symbol: string): string {
-  return symbol.replace(/Mock$/, "");
+  return symbol.replace(/\s*\(Mock\)$/i, "").replace(/Mock$/, "");
 }
 
 export function fmtAmount(value: bigint, decimals: number, maxFrac = 4): string {

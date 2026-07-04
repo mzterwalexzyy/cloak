@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { isAddress } from "viem";
+import { isAddress, getAddress } from "viem";
 import { toBaseUnits, explorerTx } from "../lib/format";
 import type { ZamaSdkHandle } from "./useZamaSdk";
 
@@ -79,10 +79,11 @@ export function parseRecipientText(text: string): RecipientRow[] {
       if (!isAddress(addr, { strict: false })) {
         return { id, address: addr, amount, parseError: diagnoseAddress(addr), status: "idle" } as RecipientRow;
       }
+      const checksumAddr = getAddress(addr);
       if (isNaN(Number(amount)) || Number(amount) <= 0) {
-        return { id, address: addr, amount, parseError: `Amount "${amount}" is not a positive number`, status: "idle" } as RecipientRow;
+        return { id, address: checksumAddr, amount, parseError: `Amount "${amount}" is not a positive number`, status: "idle" } as RecipientRow;
       }
-      return { id, address: addr, amount, status: "idle" } as RecipientRow;
+      return { id, address: checksumAddr, amount, status: "idle" } as RecipientRow;
     })
     .filter((r): r is RecipientRow => r !== null);
 
