@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
@@ -335,8 +335,15 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
         </div>
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
       {step === 1 && (
-        <>
+        <motion.div
+          key="step1"
+          initial={{ opacity: 0, x: -18 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 18 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
           {/* ── Campaign meta ── */}
           <div className="dc-section">
             <div className="dc-label-row">
@@ -444,11 +451,17 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
           >
             Next: Add recipients →
           </button>
-        </>
+        </motion.div>
       )}
 
       {step === 2 && (
-        <>
+        <motion.div
+          key="step2"
+          initial={{ opacity: 0, x: 18 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -18 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
           {/* ── Import mode tabs ── */}
           <div className="dc-section">
             <div className="import-mode-tabs">
@@ -514,15 +527,16 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
               {mode === "claim" ? "Save draft → Deploy contract next" : "Save campaign draft →"}
             </button>
           </div>
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
 
 // ── Campaign detail ───────────────────────────────────────────────────────────
 
-function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
+function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: {
   campaign: AirdropCampaign;
   zama: ReturnType<typeof useZamaSdk>;
   onBack?: () => void;
@@ -538,11 +552,15 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
   const [copied, setCopied] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [claimQueue, setClaimQueue] = useState<{ claimant: string; position: bigint; ts: bigint }[]>([]);
+  const [claimEventsError, setClaimEventsError] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawMsg, setWithdrawMsg] = useState("");
+  const [accumulatedFees, setAccumulatedFees] = useState<bigint | null>(null);
+  type RecipientFilter = "all" | "eligible" | "queued" | "sent" | "failed";
+  const [recipientFilter, setRecipientFilter] = useState<RecipientFilter>("all");
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [addRawText, setAddRawText] = useState("");
-  const [addImportMode, setAddImportMode] = useState<"paste" | "file">("paste");
+  const [addImportMode, setAddImportMode] = useState<"paste" | "file" | "dune">("paste");
   const [addFileError, setAddFileError] = useState("");
   const [addStatus, setAddStatus] = useState<"idle" | "adding" | "done" | "error">("idle");
   const [addMsg, setAddMsg] = useState("");
@@ -567,9 +585,15 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
     // Always read from store so retryFailed()'s store updates are visible
     const snapshot = airdropStore.get(campaign.id)!;
 
+    // In claim mode, only send to recipients who actually claimed on-chain
+    const claimantAddrsForExec = isClaimMode && campaign.contractDeployed
+      ? new Set(claimQueue.map(e => e.claimant.toLowerCase()))
+      : null;
+
     for (const r of snapshot.recipients) {
       if (cancelRef.current) break;
       if (r.status === "sent") continue;
+      if (claimantAddrsForExec && !claimantAddrsForExec.has(r.address.toLowerCase())) continue;
 
       airdropStore.updateRecipient(campaign.id, r.address, { status: "pending" });
       setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "pending" } : x) }));
@@ -639,19 +663,43 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
   async function loadClaimEvents() {
     if (!publicClient || !campaign.contractAddress) return;
     setLoadingEvents(true);
+    setClaimEventsError("");
     try {
       const fromBlock = campaign.deploymentBlock ? BigInt(campaign.deploymentBlock) : undefined;
       const events = await fetchClaimEvents(publicClient, campaign.contractAddress as Address, fromBlock);
       setClaimQueue(events);
     } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
+      setClaimEventsError(`Could not load claim events: ${msg}`);
       console.error(e);
     } finally {
       setLoadingEvents(false);
     }
   }
 
+  async function refreshAccumulatedFees() {
+    if (!publicClient || !campaign.contractAddress) return;
+    // Use the creator address — address(0) may revert on some contracts
+    const queryAddr = (campaign.creatorAddress ?? campaign.contractAddress) as Address;
+    try {
+      const result = await publicClient.readContract({
+        address: campaign.contractAddress as Address,
+        abi: [{ type: "function", name: "getStatus", stateMutability: "view", inputs: [{ name: "user", type: "address" }], outputs: [{ type: "bool" }, { type: "bool" }, { type: "bool" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }] }],
+        functionName: "getStatus",
+        args: [queryAddr],
+      }) as [boolean, boolean, boolean, boolean, bigint, bigint, bigint, bigint, bigint];
+      setAccumulatedFees(result[8]);
+    } catch {
+      // non-fatal — fee balance stays null
+    }
+  }
+
   async function withdrawFees() {
     if (!walletClient || !publicClient || !campaign.contractAddress) return;
+    if (accumulatedFees === 0n) {
+      setWithdrawMsg("No fees to withdraw — contract balance is 0.");
+      return;
+    }
     setWithdrawing(true);
     setWithdrawMsg("");
     try {
@@ -662,6 +710,7 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setWithdrawMsg(`Withdrawn ✓ — tx: ${hash.slice(0, 12)}…`);
+      setAccumulatedFees(0n);
     } catch (e) {
       setWithdrawMsg(e instanceof Error ? e.message.slice(0, 100) : "Withdraw failed");
     } finally {
@@ -689,7 +738,7 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
     const existingSet = new Set(campaign.recipients.map((r) => r.address.toLowerCase()));
     const newRecipients: AirdropRecipient[] = validParsed
       .filter((r) => !existingSet.has(r.address.toLowerCase()))
-      .map((r) => ({ address: r.address, amount: r.amount, status: "pending" as const }));
+      .map((r) => ({ address: r.address, amount: r.amount, status: "idle" as const }));
 
     if (!newRecipients.length) {
       setAddMsg("All addresses are already in this campaign.");
@@ -752,10 +801,11 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
     onUpdate();
   }
 
-  // Auto-load events when contract is deployed
+  // Auto-load events and fee balance when contract is deployed
   useEffect(() => {
-    if (campaign.contractDeployed && campaign.contractAddress && claimQueue.length === 0) {
-      loadClaimEvents();
+    if (campaign.contractDeployed && campaign.contractAddress) {
+      if (claimQueue.length === 0) loadClaimEvents();
+      refreshAccumulatedFees();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign.contractDeployed, campaign.contractAddress]);
@@ -763,10 +813,29 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
   const isClaimMode = campaign.mode === "claim";
   const isDeploying = deployStatus === "deploying" || deployStatus === "adding";
 
+  // Set of addresses that claimed on-chain — used to derive display status
+  const claimantSet = useMemo(() => new Set(claimQueue.map(e => e.claimant.toLowerCase())), [claimQueue]);
+
+  type DisplayStatus = "eligible" | "queued" | "sending" | "sent" | "failed";
+  function getDisplayStatus(r: AirdropRecipient): DisplayStatus {
+    if (r.status === "sent") return "sent";
+    if (r.status === "failed") return "failed";
+    if (r.status === "pending") return "sending";
+    if (isClaimMode && campaign.contractDeployed && claimantSet.has(r.address.toLowerCase())) return "queued";
+    return "eligible";
+  }
+
+  const filteredRecipients = useMemo(() => {
+    if (recipientFilter === "all") return campaign.recipients;
+    return campaign.recipients.filter(r => getDisplayStatus(r) === recipientFilter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign.recipients, recipientFilter, claimantSet]);
+
   return (
     <div className="campaign-detail">
       <div className="cd-head">
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {onBack && <button className="back-link cd-back" onClick={onBack}>← All campaigns</button>}
           <h2 className="cd-name">{campaign.name}</h2>
           {campaign.description && <p className="cd-desc">{campaign.description}</p>}
           <div className="cd-meta">
@@ -832,12 +901,16 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
             <div className="cdb-fee-row">
               <span className="muted" style={{ fontSize: "0.85rem" }}>
                 💳 Claim fee: <strong>{campaign.claimFeeEth} ETH</strong> per user
+                {accumulatedFees !== null && (
+                  <> · <strong>{(Number(accumulatedFees) / 1e18).toFixed(6)} ETH</strong> accumulated</>
+                )}
               </span>
               {isAdmin && (
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={withdrawFees}
-                  disabled={withdrawing}
+                  disabled={withdrawing || accumulatedFees === 0n}
+                  title={accumulatedFees === 0n ? "No fees accumulated yet" : undefined}
                 >
                   {withdrawing ? <><span className="spinner" /> Withdrawing…</> : "Withdraw fees →"}
                 </button>
@@ -857,54 +930,72 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
               <button className="btn btn-ghost btn-sm" onClick={loadClaimEvents} disabled={loadingEvents}>
                 {loadingEvents ? <><span className="spinner" /> Loading…</> : "Refresh claims"}
               </button>
-              {isAdmin && claimQueue.length > 0 && !isDone && (
+              {isAdmin && claimQueue.filter(ev => {
+                  const r = campaign.recipients.find(x => x.address.toLowerCase() === ev.claimant.toLowerCase());
+                  return !r || r.status !== "sent";
+                }).length > 0 && (
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => {
-                    // Override recipients with claim queue order then run
-                    const ordered: AirdropRecipient[] = claimQueue.map((ev) => {
-                      const existing = campaign.recipients.find(
-                        (r) => r.address.toLowerCase() === ev.claimant.toLowerCase()
-                      );
-                      return existing ?? { address: ev.claimant, amount: "0", status: "pending" };
+                    const fallbackAmt = campaign.recipients.find(r => Number(r.amount) > 0)?.amount ?? "0";
+                    const existingAddrs = new Set(campaign.recipients.map(r => r.address.toLowerCase()));
+                    const claimants = new Set(claimQueue.map(ev => ev.claimant.toLowerCase()));
+                    // Add any claimants not yet in the recipient list
+                    const newClaimants: AirdropRecipient[] = claimQueue
+                      .filter(ev => !existingAddrs.has(ev.claimant.toLowerCase()))
+                      .map(ev => ({ address: ev.claimant, amount: fallbackAmt, status: "idle" as const }));
+                    // Reset "failed" to "idle" for claimants so they get retried; leave non-claimants untouched
+                    const updated = campaign.recipients.map(r => {
+                      if (claimants.has(r.address.toLowerCase()) && r.status === "failed") {
+                        return { ...r, status: "idle" as const, errMsg: undefined };
+                      }
+                      return r;
                     });
-                    airdropStore.update(campaign.id, { recipients: ordered });
-                    setCampaign((c) => ({ ...c, recipients: ordered }));
+                    const merged = [...updated, ...newClaimants];
+                    airdropStore.update(campaign.id, { recipients: merged, status: "draft" });
+                    setCampaign((c) => ({ ...c, recipients: merged, status: "draft" }));
                     setTimeout(execute, 0);
                   }}
                   disabled={isRunning}
                 >
-                  Process {claimQueue.length} claims →
+                  Process {claimQueue.filter(ev => {
+                    const r = campaign.recipients.find(x => x.address.toLowerCase() === ev.claimant.toLowerCase());
+                    return !r || r.status !== "sent";
+                  }).length} claims →
                 </button>
               )}
             </div>
           </div>
-          {claimQueue.length > 0 && (
+          {claimEventsError && (
+            <div className="tx-line err" style={{ marginTop: 6, fontSize: "0.82rem" }}>{claimEventsError}</div>
+          )}
+          {(() => {
+            const pendingClaimants = claimQueue.filter(ev => {
+              const r = campaign.recipients.find(x => x.address.toLowerCase() === ev.claimant.toLowerCase());
+              return !r || r.status !== "sent";
+            });
+            return pendingClaimants.length > 0 ? (
             <div className="dc-table-wrap" style={{ marginTop: 12 }}>
               <table className="dc-table">
                 <thead><tr><th>#</th><th>Claimant</th><th>Claimed at</th><th>Status</th></tr></thead>
                 <tbody>
-                  {claimQueue.map((ev) => {
+                  {pendingClaimants.map((ev) => {
                     const r = campaign.recipients.find(
                       (x) => x.address.toLowerCase() === ev.claimant.toLowerCase()
                     );
                     const claimedAt = new Date(Number(ev.ts) * 1000).toLocaleString();
                     return (
-                      <tr key={ev.claimant} className={r?.status === "sent" ? "row-ok" : r?.status === "failed" ? "row-fail" : ""}>
+                      <tr key={ev.claimant}>
                         <td className="mono muted">{ev.position.toString()}</td>
                         <td className="mono">{shortAddr(ev.claimant)}</td>
                         <td className="mono muted" style={{ fontSize: "0.8rem" }}>{claimedAt}</td>
                         <td>
-                          {r?.status === "sent" ? (
-                            <span className="badge badge-ok">
-                              {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
-                            </span>
-                          ) : r?.status === "failed" ? (
+                          {r?.status === "failed" ? (
                             <span className="badge badge-err">failed</span>
                           ) : r?.status === "pending" ? (
                             <span className="badge badge-pending"><span className="spinner" /> sending</span>
                           ) : (
-                            <span className="badge badge-idle">queued</span>
+                            <span className="badge badge-queued">queued</span>
                           )}
                         </td>
                       </tr>
@@ -913,7 +1004,8 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
                 </tbody>
               </table>
             </div>
-          )}
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -937,7 +1029,7 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
               </div>
 
               <div className="import-mode-tabs" style={{ marginTop: 10 }}>
-                {([["paste", "✎ Paste list"], ["file", "⬆ Upload CSV / Excel"]] as ["paste" | "file", string][]).map(([m, lbl]) => (
+                {([["paste", "✎ Paste list"], ["file", "⬆ Upload CSV / Excel"], ["dune", "◈ Import from Dune"]] as ["paste" | "file" | "dune", string][]).map(([m, lbl]) => (
                   <button
                     key={m}
                     className={`import-mode-tab ${addImportMode === m ? "active" : ""}`}
@@ -948,7 +1040,13 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
                 ))}
               </div>
 
-              {addImportMode === "paste" ? (
+              {addImportMode === "dune" ? (
+                <DunePanel onImport={(rows) => {
+                  const lines = rows.map((r) => `${r.address}, ${r.amount}`).join("\n");
+                  setAddRawText(lines);
+                  setAddImportMode("paste");
+                }} />
+              ) : addImportMode === "paste" ? (
                 <textarea
                   className="dc-textarea"
                   rows={5}
@@ -1032,38 +1130,84 @@ function CampaignDetail({ campaign: initial, zama, onUpdate, isAdmin }: {
         </div>
       )}
 
+      {/* Filter tabs */}
+      {(() => {
+        const counts: Record<string, number> = { all: campaign.recipients.length, eligible: 0, queued: 0, sent: 0, failed: 0 };
+        campaign.recipients.forEach(r => { const ds = getDisplayStatus(r); counts[ds] = (counts[ds] ?? 0) + 1; });
+        const tabs: [RecipientFilter, string][] = [
+          ["all", "All"],
+          ["eligible", "Eligible"],
+          ["queued", "Queued"],
+          ["sent", "Sent"],
+          ["failed", "Failed"],
+        ];
+        return (
+          <div className="recipient-filter-tabs">
+            {tabs.map(([f, label]) => (
+              <button
+                key={f}
+                className={`rf-tab ${recipientFilter === f ? "active" : ""} ${counts[f] === 0 && f !== "all" ? "rf-tab-empty" : ""}`}
+                onClick={() => { if (counts[f] > 0 || f === "all") setRecipientFilter(f); }}
+              >
+                {label}
+                <span className="rf-count">{counts[f]}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       <div className="dc-table-wrap">
         <table className="dc-table">
-          <thead><tr><th>#</th><th>Recipient</th><th>Amount</th><th>Status</th></tr></thead>
+          <thead><tr><th>#</th><th>Recipient</th><th>Amount</th><th>Status</th>{isAdmin && !isRunning && <th />}</tr></thead>
           <tbody>
-            {campaign.recipients.map((r, i) => (
+            {filteredRecipients.map((r, i) => {
+              const ds = getDisplayStatus(r);
+              return (
               <Fragment key={r.address}>
-                <tr className={r.status === "sent" ? "row-ok" : r.status === "failed" ? "row-fail" : ""}>
+                <tr className={ds === "sent" ? "row-ok" : ds === "failed" ? "row-fail" : ""}>
                   <td className="mono muted">{i + 1}</td>
                   <td className="mono">{shortAddr(r.address)}</td>
                   <td className="mono">{r.amount} {sym}</td>
                   <td>
-                    {r.status === "sent" ? (
+                    {ds === "sent" ? (
                       <span className="badge badge-ok">
                         {r.txHash ? <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer">sent ↗</a> : "sent ✓"}
                       </span>
-                    ) : r.status === "failed" ? (
+                    ) : ds === "failed" ? (
                       <span className="badge badge-err">failed</span>
-                    ) : r.status === "pending" ? (
+                    ) : ds === "sending" ? (
                       <span className="badge badge-pending"><span className="spinner" /> sending</span>
+                    ) : ds === "queued" ? (
+                      <span className="badge badge-queued">queued</span>
                     ) : (
-                      <span className="badge badge-idle">pending</span>
+                      <span className="badge badge-idle">eligible</span>
                     )}
                   </td>
+                  {isAdmin && !isRunning && ds !== "sent" && (
+                    <td>
+                      <button
+                        className="btn-row-del"
+                        title="Remove recipient"
+                        onClick={() => {
+                          const updated = campaign.recipients.filter((x) => x.address !== r.address);
+                          airdropStore.update(campaign.id, { recipients: updated });
+                          setCampaign((c) => ({ ...c, recipients: updated }));
+                        }}
+                      >×</button>
+                    </td>
+                  )}
+                  {isAdmin && !isRunning && ds === "sent" && <td />}
                 </tr>
                 {r.errMsg && (
                   <tr className="row-reason">
                     <td />
-                    <td colSpan={3} className="row-reason-text">{r.errMsg}</td>
+                    <td colSpan={isAdmin && !isRunning ? 4 : 3} className="row-reason-text">{r.errMsg}</td>
                   </tr>
                 )}
               </Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1088,25 +1232,41 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
   }
   return (
     <div className="campaign-list">
-      {campaigns.map((c) => {
+      {campaigns.map((c, i) => {
         const sym = displaySym(c.tokenSymbol);
         const sent = c.recipients.filter((r) => r.status === "sent").length;
         return (
-          <div key={c.id} className="campaign-row" onClick={() => onSelect(c.id)}>
+          <motion.div
+            key={c.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+            className="campaign-row"
+            onClick={() => onSelect(c.id)}
+          >
             <div className="cr-left">
               <div className="cr-name">{c.name}</div>
               <div className="cr-meta">
                 <span className={`badge ${statusCls(c.status)}`}>{statusLabel(c.status)}</span>
-                <span className="muted">· {sym} · {c.recipients.length} recipients · {sent} sent · {c.startDate} → {c.deadline}</span>
+                <span className="muted">· {sym} · {c.startDate} → {c.deadline}</span>
+              </div>
+            </div>
+            <div className="cr-progress">
+              <div className="cr-progress-label">{sent} / {c.recipients.length} sent</div>
+              <div className="cr-progress-bar">
+                <div
+                  className="cr-progress-fill"
+                  style={{ width: c.recipients.length > 0 ? `${Math.round((sent / c.recipients.length) * 100)}%` : "0%" }}
+                />
               </div>
             </div>
             <div className="cr-right">
               <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onSelect(c.id); }}>
-                {c.status === "draft" ? "Launch →" : c.status === "done" ? "View" : "Resume →"}
+                {c.status === "draft" ? "Launch →" : c.status === "done" ? "View Progress" : "Resume →"}
               </button>
               <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}>Delete</button>
             </div>
-          </div>
+          </motion.div>
         );
       })}
     </div>
@@ -1144,6 +1304,16 @@ export function AirdropPage() {
     return allCampaigns.filter((c) => c.creatorAddress === me);
   }, [allCampaigns, address]);
 
+  // Clear the selected campaign if the current wallet doesn't own it
+  useEffect(() => {
+    if (!selectedId) return;
+    const me = address?.toLowerCase();
+    const sel = allCampaigns.find((c) => c.id === selectedId);
+    if (!sel || sel.creatorAddress !== me) {
+      setSelectedId(null);
+    }
+  }, [address, selectedId, allCampaigns]);
+
   const selectedCampaign = selectedId ? allCampaigns.find((c) => c.id === selectedId) : null;
 
   // True only when connected wallet matches the campaign creator
@@ -1159,23 +1329,20 @@ export function AirdropPage() {
 
   return (
     <div className="distrib-page">
-      <div className="distrib-header">
-        {selectedCampaign
-          ? <button className="back-link" onClick={() => setSelectedId(null)}>← All campaigns</button>
-          : <Link to="/" className="back-link">← Home</Link>
-        }
-        <div>
-          <div className="distrib-kicker">Confidential Distribution</div>
+      {!selectedCampaign && (
+        <div className="distrib-header">
+          <div className="distrib-kicker-row">
+            <Link to="/" className="back-link">← Home</Link>
+            <div className="distrib-kicker">Confidential Distribution</div>
+          </div>
           <h1 className="distrib-title">Airdrop</h1>
-          {!selectedCampaign && (
-            <p className="distrib-sub">
-              Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
-              CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
-              each recipient can see what they received.
-            </p>
-          )}
+          <p className="distrib-sub">
+            Create named campaigns to distribute confidential ERC-7984 tokens. Import recipients from a
+            CSV, Excel file, or directly from Dune Analytics. Amounts are FHE-encrypted — only
+            each recipient can see what they received.
+          </p>
         </div>
-      </div>
+      )}
 
       {selectedCampaign ? (
         <div className="distrib-card airdrop-full">

@@ -117,11 +117,15 @@ export function usePairActions(pair: TokenWrapperPairWithMetadata, zama: ZamaSdk
     }
   }
 
+  function clearBalance() {
+    setBal({ loading: false });
+  }
+
   return {
     u, c,
     underlyingBal: underlyingBal as bigint | undefined,
     refetchUnderlying,
-    bal, decryptBalance,
+    bal, decryptBalance, clearBalance,
     wrapAmt, setWrapAmt, wrapTx, doWrap,
     unwrapAmt, setUnwrapAmt, unwrapTx, doUnwrap,
     sendTo, setSendTo, sendAmt, setSendAmt, sendTx, doSend,

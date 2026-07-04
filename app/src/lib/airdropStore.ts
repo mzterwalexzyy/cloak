@@ -3,7 +3,7 @@
 export interface AirdropRecipient {
   address: string;
   amount: string;
-  status: "pending" | "sent" | "failed";
+  status: "idle" | "pending" | "sent" | "failed";
   txHash?: string;
   errMsg?: string;
 }

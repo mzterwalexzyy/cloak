@@ -20,7 +20,7 @@ export function PairTile({ pair, index }: { pair: TokenWrapperPairWithMetadata; 
             <TokenBadge symbol={u.symbol} />
             <TokenBadge symbol={c.symbol} confidential />
           </div>
-          {pair.isValid ? <span className="tag tag-ok">● Active</span> : <span className="tag tag-bad">Revoked</span>}
+          {pair.isValid ? <span className="tag tag-ok"><span className="status-dot">●</span> Active</span> : <span className="tag tag-bad">Revoked</span>}
         </div>
 
         <div className="glow-card-symbols">

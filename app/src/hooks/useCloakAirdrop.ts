@@ -140,11 +140,11 @@ export async function fetchClaimEvents(
   deploymentBlock?: bigint,
 ): Promise<ClaimedEvent[]> {
   // Use stored deployment block so we don't query from genesis (RPC range limit).
-  // Fall back to 200 000 blocks ago (~28 days on Sepolia) if unknown.
+  // Fall back to 10 000 blocks ago (~33h on Sepolia) — publicnode and most public RPCs cap here.
   let fromBlock = deploymentBlock;
   if (!fromBlock) {
     const latest = await publicClient!.getBlockNumber();
-    fromBlock = latest > 200_000n ? latest - 200_000n : 0n;
+    fromBlock = latest > 10_000n ? latest - 10_000n : 0n;
   }
 
   const logs = await publicClient!.getLogs({

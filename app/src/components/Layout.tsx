@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { ConnectBar } from "./ConnectBar";
 import { ChainPill } from "./ChainPill";
 import { NavSearch } from "./NavSearch";
@@ -16,24 +17,25 @@ const NAV = [
 
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="app-shell">
       <Tour />
-      <header className="relay-nav">
-        <Link to="/" className="relay-logo" onClick={() => setMenuOpen(false)}>
-          <span className="relay-star" aria-hidden>🔒</span>
-          <span className="relay-word">{BRAND}</span>
+      <header className="app-nav">
+        <Link to="/" className="app-logo" onClick={() => setMenuOpen(false)}>
+          <span className="app-icon" aria-hidden>🔒</span>
+          <span className="app-wordmark">{BRAND}</span>
         </Link>
 
-        <nav className={`relay-links ${menuOpen ? "open" : ""}`}>
+        <nav className={`app-links ${menuOpen ? "open" : ""}`}>
           {NAV.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               end={n.end}
               data-tour={n.label.toLowerCase()}
-              className={({ isActive }) => `relay-link ${isActive ? "active" : ""}`}
+              className={({ isActive }) => `app-link ${isActive ? "active" : ""}`}
               onClick={() => setMenuOpen(false)}
             >
               {n.label}
@@ -43,7 +45,7 @@ export function Layout() {
 
         <NavSearch />
 
-        <div className="relay-actions">
+        <div className="app-actions">
           <button
             className="tour-help"
             onClick={() => window.dispatchEvent(new Event("cloak:start-tour"))}
@@ -61,7 +63,17 @@ export function Layout() {
       </header>
 
       <main className="app-main">
-        <Outlet />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <footer className="site-footer">

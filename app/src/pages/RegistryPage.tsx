@@ -89,27 +89,55 @@ export function RegistryPage() {
   return (
     <div className="home-page">
       <section className="zama-hero">
-        <motion.div
-          className="hero-copy"
-          initial={{ opacity: 0, y: 22 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="hero-kicker">Zama FHE wrappers on Sepolia</div>
+        <div className="hero-blob-mid" aria-hidden />
+        <div className="hero-copy">
+          <motion.div
+            className="hero-kicker"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+          >
+            Zama FHE wrappers on Sepolia
+          </motion.div>
           <h1>
-            Wrap tokens.<br />
-            Hide balances.<br />
-            <span>Stay composable.</span>
+            {(["Wrap tokens.", "Hide balances."] as const).map((line, i) => (
+              <motion.span
+                key={line}
+                className="hero-line"
+                initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
+                animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
+                transition={{ duration: 0.6, delay: 0.16 + i * 0.13, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {line}
+              </motion.span>
+            ))}
+            <motion.span
+              className="hero-line"
+              initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
+              animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
+              transition={{ duration: 0.6, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span>Stay composable.</span>
+            </motion.span>
           </h1>
-          <p>
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.58, ease: [0.22, 1, 0.36, 1] }}
+          >
             A focused interface for the official Zama Wrapper Registry. Pick a token, wrap it into
             an ERC-7984 confidential asset, decrypt only for yourself, then send hidden amounts.
-          </p>
-          <div className="hero-buttons">
+          </motion.p>
+          <motion.div
+            className="hero-buttons"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          >
             <Link to="/app" data-tour="start" className="btn btn-primary btn-big">Start Wrapping</Link>
             <Link to="/about" className="btn btn-light btn-big">Read the flow ↗</Link>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
         <motion.div
           id="wrap-app"
@@ -174,9 +202,15 @@ export function RegistryPage() {
           <TxLine tx={a.wrapTx} />
 
           <div className="console-mini-actions">
-            <button className="mini-action" onClick={a.decryptBalance} disabled={!zama.ready || a.bal.loading}>
-              {a.bal.loading ? (a.bal.msg ?? "Authorizing...") : "Authorize & Decrypt"}
-            </button>
+            {a.bal.value !== undefined ? (
+              <button className="mini-action mini-action-encrypt" onClick={a.clearBalance}>
+                Encrypt →
+              </button>
+            ) : (
+              <button className="mini-action" onClick={a.decryptBalance} disabled={!zama.ready || a.bal.loading}>
+                {a.bal.loading ? (a.bal.msg ?? "Authorizing...") : "Authorize & Decrypt"}
+              </button>
+            )}
             <Link className="mini-action" to={hasPair ? `/pair/${selectedPair.confidentialTokenAddress}` : "/"}>Advanced actions</Link>
           </div>
           {a.bal.value !== undefined && (
@@ -187,19 +221,44 @@ export function RegistryPage() {
       </section>
 
       <section className="proof-section fresh">
-        <h2>Built for private balances. Not anonymous transfers.</h2>
-        <p>
-          The app hides balances and transfer amounts while keeping the registry, token pairs, and transaction history composable on public Ethereum Sepolia.
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2>Built for private balances. Not anonymous transfers.</h2>
+          <p>
+            The app hides balances and transfer amounts while keeping the registry, token pairs, and transaction history composable on public Ethereum Sepolia.
+          </p>
+        </motion.div>
         <div className="proof-grid">
-          <InfoCard title="Registry native" body="Every token pair is loaded from Zama's official wrapper registry, not a hand-made list." />
-          <InfoCard title="Owner-only reveal" body="Decrypting asks your wallet for authorization before showing the balance in your browser." />
-          <InfoCard title="Full lifecycle" body="Wrap, unwrap, decrypt, confidential send, and faucet — the complete token privacy flow in one place." />
+          {([
+            { icon: "🔗", title: "Registry native", body: "Every token pair is loaded from Zama's official wrapper registry, not a hand-made list." },
+            { icon: "🔑", title: "Owner-only reveal", body: "Decrypting asks your wallet for authorization before showing the balance in your browser." },
+            { icon: "⚡", title: "Full lifecycle", body: "Wrap, unwrap, decrypt, confidential send, and faucet — the complete token privacy flow in one place." },
+          ] as const).map(({ icon, title, body }, i) => (
+            <motion.div
+              key={title}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.48, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <InfoCard icon={icon} title={title} body={body} />
+            </motion.div>
+          ))}
         </div>
       </section>
 
       <section id="registry" className="registry-section compact-registry">
-        <div className="section-top">
+        <motion.div
+          className="section-top"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div data-tour="pairs">
             <h2>Supported pairs</h2>
             <p>{isLoading ? "Loading wrapper pairs..." : `${active}/${total} active pairs loaded from the Zama registry.`}</p>
@@ -207,7 +266,7 @@ export function RegistryPage() {
           <button className="btn btn-dark" onClick={() => refetch()} disabled={isFetching}>
             {isFetching ? "Refreshing..." : "Refresh"}
           </button>
-        </div>
+        </motion.div>
 
         <div className="controls clean-controls">
           <input className="search" placeholder="Search token, wrapper or address" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -220,7 +279,7 @@ export function RegistryPage() {
           </div>
         </div>
 
-        <div className="pair-list relay-list">
+        <div className="pair-list pair-grid">
           {isLoading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="tile skeleton" />)}
           {isError && <div className="empty err">Failed to load registry: {error instanceof Error ? error.message : "unknown error"}</div>}
           {!isLoading && !isError && filtered.length === 0 && <div className="empty">No pairs match “{q}”.</div>}
@@ -231,10 +290,10 @@ export function RegistryPage() {
   );
 }
 
-function InfoCard({ title, body }: { title: string; body: string }) {
+function InfoCard({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
     <div className="info-card">
-      <div className="info-icon">✧</div>
+      <div className="info-icon">{icon}</div>
       <h3>{title}</h3>
       <p>{body}</p>
     </div>

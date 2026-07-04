@@ -8,7 +8,7 @@ export function NavSearch() {
 
   return (
     <form
-      className="relay-search"
+      className="app-search"
       onSubmit={(e) => {
         e.preventDefault();
         navigate(`/?q=${encodeURIComponent(v.trim())}#registry`);
