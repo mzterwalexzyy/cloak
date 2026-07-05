@@ -1,6 +1,10 @@
 import React from "react";
 import { Composition } from "remotion";
+import { loadFont } from "@remotion/google-fonts/Inter";
 import { CloakDemo } from "./CloakDemo";
+
+// Load Inter font for all scenes
+loadFont();
 
 export function Root() {
   return (
