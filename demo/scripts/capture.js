@@ -22,10 +22,21 @@ async function wait(ms) {
 }
 
 (async () => {
+  // Support system chromium on Codespaces/CI via env var
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  if (executablePath) console.log(`  Using browser: ${executablePath}`);
+
   console.log("Launching browser…");
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    executablePath,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ],
     defaultViewport: { width: 1920, height: 1080 },
   });
   const page = await browser.newPage();
