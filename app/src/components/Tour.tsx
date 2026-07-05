@@ -32,13 +32,28 @@ const STEPS: Step[] = [
     body: "Open the full console to unwrap, decrypt your private balance, and send hidden amounts — all for any pair from one screen.",
   },
   {
+    sel: '[data-tour="disperse"]',
+    title: "5 · Disperse to many",
+    body: "Send FHE-encrypted tokens to multiple addresses at once — paste or upload a CSV list, preview amounts, and batch-send in one session.",
+  },
+  {
+    sel: '[data-tour="airdrop"]',
+    title: "6 · Airdrop campaigns",
+    body: "Create saved campaigns with named recipient lists. Use Send-Now mode to push directly, or deploy a Claim-Link contract your community claims from.",
+  },
+  {
+    sel: '[data-tour="history"]',
+    title: "7 · Transaction history",
+    body: "View all your recent on-chain activity — wraps, sends, disperses and more — fetched live from Etherscan Sepolia.",
+  },
+  {
     sel: '[data-tour="docs"]',
-    title: "5 · How privacy works",
+    title: "8 · How privacy works",
     body: "Read the Docs to understand what stays private (amounts & balances) and what doesn't (sender & recipient addresses).",
   },
   {
     sel: '[data-tour="pairs"]',
-    title: "6 · Supported pairs",
+    title: "9 · Supported pairs",
     body: "Every ERC-20 ↔ ERC-7984 pair from the registry, loaded live. Click any card to open its wrap / unwrap / decrypt / send screen.",
   },
 ];

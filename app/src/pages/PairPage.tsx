@@ -80,7 +80,7 @@ export function PairPage() {
               <span>c{displaySym(u.symbol)} balance</span>
               {a.bal.value !== undefined
                 ? <strong>{fmtAmount(a.bal.value, c.decimals)} {displaySym(c.symbol)}</strong>
-                : <strong className="pair-balance-locked">🔒 {fmtAmount(0n, c.decimals)} c{displaySym(u.symbol)}</strong>}
+                : <strong className="pair-balance-locked">🔒 •••••• c{displaySym(u.symbol)}</strong>}
             </div>
           </div>
 

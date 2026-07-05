@@ -1,6 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { type Address, parseEther } from "viem";
@@ -1336,16 +1335,45 @@ export function AirdropPage() {
     if (selectedId === id) setSelectedId(null);
   }
 
+  const totalRecipients = campaigns.reduce((s, c) => s + c.recipients.length, 0);
+  const totalSent = campaigns.reduce((s, c) => s + c.recipients.filter((r) => r.status === "sent").length, 0);
+  const successRate = totalRecipients > 0 ? ((totalSent / totalRecipients) * 100).toFixed(1) : "—";
+
   return (
     <div className="airdrop-page">
       {!selectedCampaign && (
-        <div className="airdrop-page-head">
-          <Link to="/" className="back-link">← Home</Link>
-          <h1>Airdrop</h1>
-          <p>
-            Create and manage airdrop campaigns with saved recipient lists.
-          </p>
-        </div>
+        <>
+          {/* ── Hero ── */}
+          <div className="ad-hero">
+            <div className="ad-hero-left">
+              <div className="ad-hero-badge">🪂 Confidential Airdrops</div>
+              <h1 className="ad-hero-title">Airdrop campaigns</h1>
+              <p className="ad-hero-sub">Create and manage token airdrops with FHE-encrypted amounts. Recipients never see what others received.</p>
+              <div className="ad-hero-btns">
+                <button className="btn btn-primary" onClick={() => setTab("create")}>+ New campaign</button>
+                <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>Live campaigns 🔔</button>
+              </div>
+            </div>
+            <div className="ad-stats-row">
+              <div className="ad-stat">
+                <span className="ad-stat-val">{campaigns.length}</span>
+                <span className="ad-stat-label">Total campaigns</span>
+              </div>
+              <div className="ad-stat">
+                <span className="ad-stat-val">{totalRecipients.toLocaleString()}</span>
+                <span className="ad-stat-label">Total recipients</span>
+              </div>
+              <div className="ad-stat">
+                <span className="ad-stat-val">{totalSent.toLocaleString()}</span>
+                <span className="ad-stat-label">Tokens distributed</span>
+              </div>
+              <div className="ad-stat">
+                <span className="ad-stat-val">{successRate}{successRate !== "—" ? "%" : ""}</span>
+                <span className="ad-stat-label">Success rate</span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {selectedCampaign ? (
@@ -1384,26 +1412,20 @@ export function AirdropPage() {
           </motion.div>
 
           {tab === "campaigns" && (
-            <div className="campaign-flow">
-              <div className="campaign-flow-title">Campaign flow</div>
-              <div className="campaign-flow-steps">
-                {[
-                  { num: "1", label: "Configure", sub: "Name, token, recipients" },
-                  { num: "2", label: "Review", sub: "Check addresses & amounts" },
-                  { num: "3", label: "Send", sub: "Execute airdrop" },
-                ].map((s, i, arr) => (
-                  <>
-                    <div key={s.num} className="cf-flow-step">
-                      <div className="cf-flow-num">{s.num}</div>
-                      <div className="cf-flow-text">
-                        <strong>{s.label}</strong>
-                        <span>{s.sub}</span>
-                      </div>
-                    </div>
-                    {i < arr.length - 1 && <span className="cf-flow-arrow">→</span>}
-                  </>
-                ))}
-              </div>
+            <div className="ad-trust-strip">
+              {[
+                { icon: "🔒", title: "Encrypted amounts", sub: "FHE keeps every balance and transfer amount hidden on-chain" },
+                { icon: "⛓", title: "Fully on-chain", sub: "Immutable recipient lists and claim contracts — no backend required" },
+                { icon: "🔑", title: "Non-custodial", sub: "You hold your keys and control the airdrop from start to finish" },
+              ].map((f) => (
+                <div key={f.title} className="ad-trust-item">
+                  <span className="ad-trust-icon">{f.icon}</span>
+                  <div>
+                    <strong>{f.title}</strong>
+                    <p>{f.sub}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </>

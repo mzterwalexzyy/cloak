@@ -78,6 +78,7 @@ export function Layout() {
           <NavLink
             to="/history"
             title="History"
+            data-tour="history"
             className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
             onClick={() => setMenuOpen(false)}
           >

@@ -139,6 +139,19 @@ export function DispersePage() {
           <p>Send FHE-encrypted tokens to multiple addresses in one session.</p>
         </div>
 
+        {/* Step indicator */}
+        <div className="disperse-step-indicator">
+          <div className={`dsi-step ${validCount > 0 || rawText ? "dsi-done" : "dsi-active"}`}>
+            <span className="dsi-num">{validCount > 0 || rawText ? "✓" : "1"}</span>
+            <span className="dsi-label">Configure</span>
+          </div>
+          <div className="dsi-line" />
+          <div className={`dsi-step ${validCount > 0 ? "dsi-active" : ""}`}>
+            <span className="dsi-num">2</span>
+            <span className="dsi-label">Preview</span>
+          </div>
+        </div>
+
         <div className="disperse-layout">
           {/* ── Left: inputs ── */}
           <motion.div
@@ -279,6 +292,25 @@ export function DispersePage() {
               )}
             </div>
 
+            {validCount > 0 && !isRunning && !isDone && (
+              <div className="disperse-summary-card">
+                <div className="dsc-item">
+                  <span className="dsc-label">Total recipients</span>
+                  <span className="dsc-val">{validCount}</span>
+                </div>
+                <div className="dsc-divider" />
+                <div className="dsc-item">
+                  <span className="dsc-label">Total amount</span>
+                  <span className="dsc-val">{totalAmt.toFixed(4)} <span className="dsc-sym">{sym}</span></span>
+                </div>
+                <div className="dsc-divider" />
+                <div className="dsc-item">
+                  <span className="dsc-label">Network fee est.</span>
+                  <span className="dsc-val">~{(validCount * 0.002).toFixed(3)} ETH</span>
+                </div>
+              </div>
+            )}
+
             {isRunning && (
               <div className="disperse-progress" style={{ marginBottom: 12 }}>
                 <div className="dp-bar-wrap">
@@ -298,15 +330,17 @@ export function DispersePage() {
                 <table className="dc-table">
                   <thead>
                     <tr>
+                      <th>#</th>
                       <th>Address</th>
                       <th>Amount</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayRows.map((row) => (
+                    {displayRows.map((row, idx) => (
                       <Fragment key={row.id}>
                         <tr className={row.parseError ? "row-err" : row.status === "ok" ? "row-ok" : row.status === "error" ? "row-fail" : ""}>
+                          <td className="mono muted">{idx + 1}</td>
                           <td className="mono">{shortAddr(row.address || "—")}</td>
                           <td className="mono">{row.amount || "—"} {!row.parseError ? sym : ""}</td>
                           <td>
@@ -327,7 +361,7 @@ export function DispersePage() {
                         </tr>
                         {(row.parseError || row.errMsg) && (
                           <tr className="row-reason">
-                            <td colSpan={3} className="row-reason-text">{row.parseError ?? row.errMsg}</td>
+                            <td colSpan={4} className="row-reason-text">{row.parseError ?? row.errMsg}</td>
                           </tr>
                         )}
                       </Fragment>
