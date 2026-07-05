@@ -3743,9 +3743,12 @@
 [data-theme="light"] .history-page-head h1 { color: #0a1525; }
 [data-theme="light"] .ad-hero-title { color: #0a1525; }
 [data-theme="light"] .dsc-val { color: #1a2a40; }
+[data-theme="light"] .docs-hero h1 { color: #0a1525; }
 
 /* ── Address / mono text visibility ── */
 [data-theme="light"] .pair-info-addr-row a { color: #007a48; }
 [data-theme="light"] .glow-card-foot .mono { color: #5a6e88; }
 [data-theme="light"] .app-wordmark { color: #0a1525; text-decoration: none; }
+[data-theme="light"] .connect-addr-btn { color: #0a1525; }
+[data-theme="light"] .connect-addr-btn:hover { background: rgba(0,0,0,0.05); }
 
