@@ -7,6 +7,7 @@ import { AboutPage } from "./pages/AboutPage";
 import { DispersePage } from "./pages/DispersePage";
 import { AirdropPage } from "./pages/AirdropPage";
 import { ClaimPage } from "./pages/ClaimPage";
+import { HistoryPage } from "./pages/HistoryPage";
 import "./App.css";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="disperse" element={<DispersePage />} />
         <Route path="airdrop" element={<AirdropPage />} />
         <Route path="claim" element={<ClaimPage />} />
+        <Route path="history" element={<HistoryPage />} />
         <Route path="*" element={<RegistryPage />} />
       </Route>
     </Routes>

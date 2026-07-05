@@ -100,24 +100,29 @@ export function RegistryPage() {
             Zama FHE wrappers on Sepolia
           </motion.div>
           <h1>
-            {(["Privacy by default.", "Composability"] as const).map((line, i) => (
-              <motion.span
-                key={line}
-                className="hero-line"
-                initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
-                animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
-                transition={{ duration: 0.6, delay: 0.16 + i * 0.13, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {line}
-              </motion.span>
-            ))}
+            <motion.span
+              className="hero-line"
+              initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
+              animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
+              transition={{ duration: 0.6, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            >
+              Privacy by default.
+            </motion.span>
+            <motion.span
+              className="hero-line hero-line-green"
+              initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
+              animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
+              transition={{ duration: 0.6, delay: 0.29, ease: [0.22, 1, 0.36, 1] }}
+            >
+              Composability
+            </motion.span>
             <motion.span
               className="hero-line"
               initial={{ opacity: 0, y: 30, clipPath: "inset(0 0 100% 0)" }}
               animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
               transition={{ duration: 0.6, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
             >
-              <span>by design.</span>
+              by design.
             </motion.span>
           </h1>
           <motion.p

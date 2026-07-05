@@ -1235,6 +1235,10 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
       {campaigns.map((c, i) => {
         const sym = displaySym(c.tokenSymbol);
         const sent = c.recipients.filter((r) => r.status === "sent").length;
+        const total = c.recipients.length;
+        const pct = total > 0 ? Math.round((sent / total) * 100) : 0;
+        const uiStatus = c.status === "draft" ? "idle" : c.status === "executing" ? "active" : "done";
+        const uiLabel = c.status === "draft" ? "Idle" : c.status === "executing" ? "Active" : "Done";
         return (
           <motion.div
             key={c.id}
@@ -1244,27 +1248,32 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
             className="campaign-row"
             onClick={() => onSelect(c.id)}
           >
-            <div className="cr-left">
+            <div className="cr-main">
               <div className="cr-name">{c.name}</div>
-              <div className="cr-meta">
-                <span className={`badge ${statusCls(c.status)}`}>{statusLabel(c.status)}</span>
-                <span className="muted">· {sym} · {c.startDate} → {c.deadline}</span>
+              <div className="cr-sub">
+                <span className="cr-recipients">{total} recipients</span>
+                <span className="cr-sym muted">· {sym}</span>
+              </div>
+              <div className="cr-bar-wrap">
+                <div className="cr-bar-track">
+                  <div className="cr-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="cr-bar-label">{sent} / {total} sent</span>
               </div>
             </div>
-            <div className="cr-progress">
-              <div className="cr-progress-label">{sent} / {c.recipients.length} sent</div>
-              <div className="cr-progress-bar">
-                <div
-                  className="cr-progress-fill"
-                  style={{ width: c.recipients.length > 0 ? `${Math.round((sent / c.recipients.length) * 100)}%` : "0%" }}
-                />
-              </div>
-            </div>
-            <div className="cr-right">
-              <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); onSelect(c.id); }}>
-                {c.status === "draft" ? "Launch →" : c.status === "done" ? "View Progress" : "Resume →"}
+            <div className="cr-actions">
+              <span className={`cr-status-badge cr-status-${uiStatus}`}>{uiLabel}</span>
+              <button
+                className="btn btn-ghost btn-sm cr-open-btn"
+                onClick={(e) => { e.stopPropagation(); onSelect(c.id); }}
+              >
+                Open
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}>Delete</button>
+              <button
+                className="cr-del-btn"
+                title="Delete campaign"
+                onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+              >×</button>
             </div>
           </motion.div>
         );
@@ -1356,7 +1365,7 @@ export function AirdropPage() {
               className={`btn btn-ghost ${tab === "campaigns" ? "active" : ""}`}
               onClick={() => setTab("campaigns")}
             >
-              Import list
+              Live campaigns
             </button>
           </div>
 
