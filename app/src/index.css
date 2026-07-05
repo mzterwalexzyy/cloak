@@ -82,7 +82,10 @@ code { background: var(--surface-2); padding: 2px 7px; border-radius: 6px; font-
   border: none;
   font-weight: 700;
 }
-.btn-primary:hover:not(:disabled) { box-shadow: var(--glow); }
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00c070, #1cd68a);
+  box-shadow: 0 6px 22px -6px rgba(0, 200, 110, 0.55);
+}
 .btn-ghost { background: transparent; }
 .btn-warn { background: linear-gradient(135deg, var(--warn), #f59e0b); color: #2a1c00; border: none; }
 .btn-lg { padding: 13px 26px; font-size: 1rem; }

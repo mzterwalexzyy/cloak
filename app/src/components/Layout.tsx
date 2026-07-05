@@ -196,7 +196,7 @@ export function Layout() {
         </nav>
 
         <main className="app-main">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 10 }}

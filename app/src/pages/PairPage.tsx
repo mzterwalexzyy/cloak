@@ -24,7 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function PairPage() {
   const { address: confidentialAddress } = useParams();
   const navigate = useNavigate();
-  const { data, isLoading } = useRegistryPairs();
+  const { data } = useRegistryPairs();
   const zama = useZamaSdk();
   const [tab, setTab] = useState<Tab>("wrap");
 
@@ -35,7 +35,7 @@ export function PairPage() {
 
   const a = usePairActions(pair ?? PLACEHOLDER, zama);
 
-  if (isLoading) return <div className="pair-page-new"><div className="loading">Loading token…</div></div>;
+  if (!data) return <PairPageSkeleton />;
   if (!pair) {
     return <div className="pair-page-new"><div className="empty">Token not found. <Link to="/#registry">Back to registry</Link></div></div>;
   }
@@ -262,6 +262,67 @@ function PairInfoRow({ label, value }: { label: string; value: React.ReactNode }
     <div className="pair-info-row">
       <span className="pair-info-label">{label}</span>
       <span className="pair-info-value">{value}</span>
+    </div>
+  );
+}
+
+function PairPageSkeleton() {
+  return (
+    <div className="pair-page-new">
+      <div className="pair-page-head">
+        <div className="pskel" style={{ width: 56, height: 14, borderRadius: 6 }} />
+        <div className="pair-page-identity" style={{ marginTop: 14 }}>
+          <div className="pskel" style={{ width: 76, height: 40, borderRadius: '50%' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="pskel" style={{ width: 180, height: 22, borderRadius: 8 }} />
+            <div className="pskel" style={{ width: 110, height: 13, borderRadius: 6 }} />
+          </div>
+          <div className="pskel" style={{ width: 72, height: 28, borderRadius: 999 }} />
+        </div>
+      </div>
+      <div className="pair-page-layout">
+        <div className="pair-main-col">
+          <div className="pair-balances">
+            <div className="pair-balance-item">
+              <div className="pskel" style={{ width: 90, height: 11, borderRadius: 5 }} />
+              <div className="pskel" style={{ width: 130, height: 20, borderRadius: 7, marginTop: 4 }} />
+            </div>
+            <div className="pair-balance-item">
+              <div className="pskel" style={{ width: 110, height: 11, borderRadius: 5 }} />
+              <div className="pskel" style={{ width: 150, height: 20, borderRadius: 7, marginTop: 4 }} />
+            </div>
+          </div>
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div className="pskel" style={{ width: '100%', height: 44, borderRadius: 10 }} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[80, 76, 80, 62, 72].map((w, i) => (
+                <div key={i} className="pskel" style={{ width: w, height: 38, borderRadius: 10 }} />
+              ))}
+            </div>
+            <div className="pskel" style={{ width: '100%', height: 90, borderRadius: 14 }} />
+            <div className="pskel" style={{ width: '55%', height: 50, borderRadius: 12 }} />
+          </div>
+        </div>
+        <div className="pair-info-sidebar">
+          <div className="pskel" style={{ width: 70, height: 11, borderRadius: 5, marginBottom: 20 }} />
+          <div className="pair-info-rows">
+            {[100, 80, 70, 90, 65].map((w, i) => (
+              <div key={i} className="pair-info-row">
+                <div className="pskel" style={{ width: 60, height: 11, borderRadius: 5 }} />
+                <div className="pskel" style={{ width: w, height: 11, borderRadius: 5 }} />
+              </div>
+            ))}
+          </div>
+          <div className="pair-info-addrs">
+            {[0, 1].map((i) => (
+              <div key={i} className="pair-info-addr-row">
+                <div className="pskel" style={{ width: 50, height: 10, borderRadius: 5 }} />
+                <div className="pskel" style={{ width: 90, height: 10, borderRadius: 5 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
