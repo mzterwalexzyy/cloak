@@ -47,9 +47,9 @@ const STEPS: Step[] = [
     body: "View all your recent on-chain activity — wraps, sends, disperses and more — fetched live from Etherscan Sepolia.",
   },
   {
-    sel: '[data-tour="docs"]',
+    sel: '[data-tour="about"]',
     title: "8 · How privacy works",
-    body: "Read the Docs to understand what stays private (amounts & balances) and what doesn't (sender & recipient addresses).",
+    body: "Visit About to understand what stays private (amounts & balances) and what doesn't (sender & recipient addresses).",
   },
   {
     sel: '[data-tour="pairs"]',

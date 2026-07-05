@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConnectBar } from "./ConnectBar";
@@ -35,17 +35,81 @@ function HistorySvg() {
   );
 }
 
+function FaucetSvg() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden>
+      {/* horizontal pipe */}
+      <rect x="1" y="8" width="7" height="2.5" rx="1.25"/>
+      {/* valve knob */}
+      <ellipse cx="4.5" cy="6.5" rx="2.5" ry="1.2" opacity="0.8"/>
+      <rect x="4" y="6" width="1" height="2.5" rx="0.5"/>
+      {/* spout body */}
+      <rect x="8" y="7" width="4" height="5.5" rx="1"/>
+      {/* spout lip */}
+      <rect x="7.5" y="12" width="5" height="1.5" rx="0.75"/>
+      {/* water drop */}
+      <path d="M10 14.5 C10 14.5 8.5 16.2 8.5 17.2 A1.5 1.5 0 0 0 11.5 17.2 C11.5 16.2 10 14.5 10 14.5z"/>
+    </svg>
+  );
+}
+
+function AboutSvg() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden>
+      <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+      <circle cx="10" cy="7" r="1.1"/>
+      <rect x="9.1" y="9.5" width="1.8" height="5" rx="0.9"/>
+    </svg>
+  );
+}
+
+function SunSvg() {
+  return (
+    <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+      <circle cx="10" cy="10" r="3.5" fill="currentColor" stroke="none"/>
+      <line x1="10" y1="1.5" x2="10" y2="3.5"/>
+      <line x1="10" y1="16.5" x2="10" y2="18.5"/>
+      <line x1="1.5" y1="10" x2="3.5" y2="10"/>
+      <line x1="16.5" y1="10" x2="18.5" y2="10"/>
+      <line x1="3.93" y1="3.93" x2="5.34" y2="5.34"/>
+      <line x1="14.66" y1="14.66" x2="16.07" y2="16.07"/>
+      <line x1="16.07" y1="3.93" x2="14.66" y2="5.34"/>
+      <line x1="5.34" y1="14.66" x2="3.93" y2="16.07"/>
+    </svg>
+  );
+}
+
+function MoonSvg() {
+  return (
+    <svg viewBox="0 0 20 20" width="15" height="15" fill="currentColor" aria-hidden>
+      <path d="M16.5 11.5A7 7 0 0 1 8.5 3.5c0 .17.01.34.02.5A6.5 6.5 0 1 0 16 13.48c.17-.65.5-1.29.5-1.98z"/>
+    </svg>
+  );
+}
+
 const SIDEBAR_NAV: { to: string; icon: React.ReactNode; label: string; end?: boolean }[] = [
-  { to: "/",         icon: "◫",             label: "Wrap",     end: true },
-  { to: "/disperse", icon: <DisperseSvg />, label: "Disperse" },
-  { to: "/airdrop",  icon: <AirdropSvg />,  label: "Airdrop"  },
-  { to: "/faucet",   icon: "◉",             label: "Faucet"   },
-  { to: "/about",    icon: "≡",             label: "Docs"     },
+  { to: "/",         icon: "◫",              label: "Wrap",     end: true },
+  { to: "/disperse", icon: <DisperseSvg />,  label: "Disperse" },
+  { to: "/airdrop",  icon: <AirdropSvg />,   label: "Airdrop"  },
+  { to: "/faucet",   icon: <FaucetSvg />,    label: "Faucet"   },
+  { to: "/about",    icon: <AboutSvg />,     label: "About"    },
 ];
 
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("cloak-theme") as "dark" | "light") ?? "dark";
+  });
   const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("cloak-theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
+  }
 
   return (
     <div className="app-shell">
@@ -94,6 +158,14 @@ export function Layout() {
           <span className="app-wordmark">{BRAND}</span>
           <NavSearch />
           <div className="topbar-actions">
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+            >
+              {theme === "dark" ? <SunSvg /> : <MoonSvg />}
+            </button>
             <button
               className="tour-help"
               onClick={() => window.dispatchEvent(new Event("cloak:start-tour"))}
@@ -145,16 +217,25 @@ export function Layout() {
                 Confidential token wrappers on Ethereum Sepolia. Wrap, unwrap, decrypt and send ERC-7984
                 tokens from the official Zama Wrappers Registry.
               </p>
+              <div className="footer-socials">
+                <a className="footer-social-link" href="https://github.com/mzterwalexzyy" target="_blank" rel="noreferrer">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden><path d="M10 1.667A8.333 8.333 0 0 0 1.667 10c0 3.682 2.388 6.805 5.703 7.909.417.077.57-.181.57-.402 0-.199-.007-.725-.011-1.422-2.32.504-2.81-1.119-2.81-1.119-.38-.965-.927-1.222-.927-1.222-.758-.518.058-.507.058-.507.838.059 1.279.861 1.279.861.744 1.274 1.951.906 2.428.693.075-.539.291-.906.53-1.114-1.851-.21-3.797-.926-3.797-4.12 0-.91.325-1.654.858-2.237-.086-.21-.372-1.058.081-2.206 0 0 .699-.224 2.29.853A7.974 7.974 0 0 1 10 5.83c.708.003 1.421.096 2.087.28 1.59-1.077 2.288-.853 2.288-.853.455 1.148.169 1.996.083 2.206.534.583.857 1.327.857 2.237 0 3.202-1.949 3.907-3.806 4.113.299.258.566.767.566 1.546 0 1.116-.01 2.016-.01 2.29 0 .223.15.483.574.401A8.335 8.335 0 0 0 18.333 10 8.333 8.333 0 0 0 10 1.667z"/></svg>
+                  @mzterwalexzyy
+                </a>
+                <a className="footer-social-link" href="https://x.com/de_xklusiv" target="_blank" rel="noreferrer">
+                  <svg viewBox="0 0 20 20" width="13" height="13" fill="currentColor" aria-hidden><path d="M15.18 2h2.64l-5.76 6.59L18.94 18h-5.3l-4.16-5.44L4.77 18H2.13l6.16-7.05L1.06 2h5.43l3.76 4.91L15.18 2zm-.92 14.38h1.46L5.82 3.5H4.25l10.01 12.88z"/></svg>
+                  @de_xklusiv
+                </a>
+              </div>
             </div>
             <div className="footer-cols">
               <div className="footer-col">
                 <h4>App</h4>
                 <Link to="/">Wrap</Link>
-                <Link to="/app">Swap console</Link>
                 <Link to="/disperse">Disperse</Link>
                 <Link to="/airdrop">Airdrop</Link>
                 <Link to="/faucet">Faucet</Link>
-                <Link to="/about">Docs</Link>
+                <Link to="/about">About</Link>
                 <Link to="/history">History</Link>
               </div>
               <div className="footer-col">
