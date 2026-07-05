@@ -9,8 +9,8 @@ export function Root() {
       component={CloakDemo}
       durationInFrames={5400}
       fps={30}
-      width={1920}
-      height={1080}
+      width={1280}
+      height={720}
     />
   );
 }

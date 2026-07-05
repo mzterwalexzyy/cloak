@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "node scripts/placeholders.js",
     "start": "remotion studio",
-    "render": "remotion render CloakDemo out/cloak-demo.mp4 --log=verbose",
+    "render": "remotion render CloakDemo out/cloak-demo.mp4 --concurrency=2",
     "capture": "node scripts/capture.js"
   },
   "dependencies": {
