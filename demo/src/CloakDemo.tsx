@@ -141,6 +141,25 @@ export function CloakDemo() {
   );
 }
 
+// ─── Shared logo SVG (matches real favicon.svg exactly) ──────────────────────
+function CloakLogo({ size = 80, glowOpacity = 0.2 }: { size?: number; glowOpacity?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size} style={{ borderRadius: size * 0.25, boxShadow: `0 0 ${size * 0.75}px rgba(155,107,255,${glowOpacity})`, display: "block" }}>
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#9b6bff" />
+          <stop offset="1" stopColor="#7c5cff" />
+        </linearGradient>
+      </defs>
+      <rect width="64" height="64" rx="16" fill="#0a0a12" />
+      <rect x="17" y="29" width="30" height="21" rx="5" fill="url(#lg)" />
+      <path d="M24 29v-6a8 8 0 0 1 16 0v6" fill="none" stroke="url(#lg)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="32" cy="38" r="3.2" fill="#0a0a12" />
+      <rect x="30.6" y="38" width="2.8" height="7" rx="1.4" fill="#0a0a12" />
+    </svg>
+  );
+}
+
 // ─── Hook (title card — stays hand-coded, looks intentional) ─────────────────
 function HookScene() {
   const frame = useCurrentFrame();
@@ -158,7 +177,7 @@ function HookScene() {
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, textAlign: "center" }}>
         <div style={{ opacity: logoOpacity, transform: `scale(${logoScale})`, display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ width: 80, height: 80, borderRadius: 22, background: "rgba(0,217,126,0.1)", border: `1.5px solid rgba(0,217,126,0.3)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, boxShadow: `0 0 60px rgba(0,217,126,${0.15 + glow * 0.1})` }}>🔒</div>
+          <CloakLogo size={90} glowOpacity={0.15 + glow * 0.1} />
           <span style={{ fontSize: 90, fontWeight: 800, color: C.text, letterSpacing: "-0.04em", fontStyle: "italic" }}>Cloak</span>
         </div>
 
@@ -175,7 +194,6 @@ function HookScene() {
         </div>
 
         <div style={{ opacity: badgesOpacity, background: "rgba(0,217,126,0.05)", border: `1px solid rgba(0,217,126,0.12)`, borderRadius: 14, padding: "12px 28px", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 20 }}>🔐</span>
           <span style={{ color: C.muted, fontSize: 15 }}>Built for</span>
           <span style={{ color: C.conf, fontWeight: 800, fontSize: 15 }}>Zama Developer Program — Season 3</span>
           <span style={{ color: C.faint, fontSize: 14 }}>· Ethereum Sepolia</span>
@@ -324,7 +342,7 @@ function CloseScene() {
 
       <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 28 }}>
         <div style={{ opacity: logoOpacity, transform: `scale(${logoScale})`, display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ width: 80, height: 80, borderRadius: 22, background: "rgba(0,217,126,0.1)", border: `1.5px solid rgba(0,217,126,0.3)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, boxShadow: `0 0 60px rgba(0,217,126,${0.15 + glow * 0.1})` }}>🔒</div>
+          <CloakLogo size={90} glowOpacity={0.15 + glow * 0.1} />
           <span style={{ fontSize: 90, fontWeight: 800, color: C.text, letterSpacing: "-0.04em", fontStyle: "italic" }}>Cloak</span>
         </div>
 
@@ -348,7 +366,6 @@ function CloseScene() {
         </div>
 
         <div style={{ opacity: linksOpacity, background: "rgba(0,217,126,0.06)", border: `1px solid rgba(0,217,126,0.15)`, borderRadius: 14, padding: "12px 28px", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 20 }}>🔐</span>
           <span style={{ color: C.conf, fontWeight: 800, fontSize: 15 }}>Zama Developer Program — Season 3</span>
           <span style={{ color: C.faint, fontSize: 14 }}>· #ZamaDeveloperProgram</span>
         </div>
