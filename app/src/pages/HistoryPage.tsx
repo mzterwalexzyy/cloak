@@ -4,8 +4,6 @@ import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { explorerTx, explorerAddress, shortAddr } from "../lib/format";
 
-const REGISTRY = "0x2f0750bbb0a246059d80e94c454586a7f27a128e";
-
 interface EthTx {
   hash: string;
   from: string;
