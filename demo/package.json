@@ -3,14 +3,17 @@
   "version": "0.0.1",
   "description": "3-minute demo video for Cloak — Confidential Token Wrappers on Zama FHE",
   "scripts": {
+    "postinstall": "node scripts/placeholders.js",
     "start": "remotion studio",
-    "render": "remotion render CloakDemo out/cloak-demo.mp4 --log=verbose"
+    "render": "remotion render CloakDemo out/cloak-demo.mp4 --log=verbose",
+    "capture": "node scripts/capture.js"
   },
   "dependencies": {
     "@remotion/cli": "4",
     "remotion": "4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "puppeteer": "^22.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
