@@ -3471,6 +3471,9 @@
     #f0f4fa;
 }
 
+/* App shell background — root fix for all inner pages */
+[data-theme="light"] .app-shell { background: transparent; }
+
 /* Sidebar */
 [data-theme="light"] .app-sidebar {
   background: rgba(255,255,255,0.97);
@@ -3733,4 +3736,16 @@
   background: linear-gradient(90deg, #e4eaf4 25%, #eef2fa 50%, #e4eaf4 75%);
   background-size: 200% 100%;
 }
+
+/* ── Page heading overrides (hardcoded #fff in dark-mode rules) ── */
+[data-theme="light"] .faucet-page-head h1 { color: #0a1525; }
+[data-theme="light"] .disperse-page-head h1 { color: #0a1525; }
+[data-theme="light"] .history-page-head h1 { color: #0a1525; }
+[data-theme="light"] .ad-hero-title { color: #0a1525; }
+[data-theme="light"] .dsc-val { color: #1a2a40; }
+
+/* ── Address / mono text visibility ── */
+[data-theme="light"] .pair-info-addr-row a { color: #007a48; }
+[data-theme="light"] .glow-card-foot .mono { color: #5a6e88; }
+[data-theme="light"] .app-wordmark { color: #0a1525; text-decoration: none; }
 

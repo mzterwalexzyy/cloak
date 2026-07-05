@@ -155,7 +155,7 @@ export function Layout() {
       {/* ── Right content column ── */}
       <div className="app-content">
         <header className="app-topbar">
-          <span className="app-wordmark">{BRAND}</span>
+          <Link to="/" className="app-wordmark">{BRAND}</Link>
           <NavSearch />
           <div className="topbar-actions">
             <button
