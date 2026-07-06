@@ -137,7 +137,7 @@
 /* ── Mobile nav overlay ── */
 .mobile-nav {
   display: none;
-  position: absolute;
+  position: fixed;
   top: 64px; left: 0; right: 0;
   z-index: 55;
   flex-direction: column;
