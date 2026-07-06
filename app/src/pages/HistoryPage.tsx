@@ -67,14 +67,16 @@ export function HistoryPage() {
     setError("");
 
     fetch(
-      `https://api-sepolia.etherscan.io/api?module=account&action=txlist&address=${address}&sort=desc&page=1&offset=50`
+      `https://eth-sepolia.blockscout.com/api?module=account&action=txlist&address=${address}&sort=desc&page=1&offset=50`
     )
       .then((r) => r.json())
       .then((data) => {
         if (data.status === "1" && Array.isArray(data.result)) {
           setTxs(data.result as EthTx[]);
-        } else {
+        } else if (data.message === "No transactions found") {
           setTxs([]);
+        } else {
+          setError(data.message ?? data.result ?? "Failed to load transactions.");
         }
         setLoading(false);
       })
