@@ -1383,18 +1383,15 @@ export function AirdropPage() {
       ) : (
         <>
           <div className="airdrop-page-actions">
-            <button
-              className={`btn btn-ghost ${tab === "campaigns" ? "active" : ""}`}
-              onClick={() => setTab("campaigns")}
-            >
-              Live campaigns
-            </button>
-            <button
-              className={`btn btn-primary ${tab === "create" ? "active" : ""}`}
-              onClick={() => setTab("create")}
-            >
-              + New campaign
-            </button>
+            {tab === "create" ? (
+              <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>
+                Live campaign stats
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => setTab("create")}>
+                + New campaign
+              </button>
+            )}
           </div>
 
           <motion.div
