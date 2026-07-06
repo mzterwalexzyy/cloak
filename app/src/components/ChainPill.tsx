@@ -46,7 +46,7 @@ export function ChainPill({ compact }: { compact?: boolean } = {}) {
         type="button"
         className={`chain-pill chain-pill-compact ${wrong ? "chain-wrong" : ""}`}
         disabled={switching || connecting}
-        title={wrong ? "Wrong network — click to switch to Sepolia" : label}
+        title={wrong ? "Wrong network. Click to switch to Sepolia." : label}
         onClick={onClick}
       >
         <span className="chain-dot" />
@@ -59,7 +59,7 @@ export function ChainPill({ compact }: { compact?: boolean } = {}) {
       type="button"
       className={`chain-pill ${wrong ? "chain-wrong" : ""}`}
       disabled={switching || connecting}
-      title={wrong ? "Wrong network — click to switch to Sepolia" : "Sepolia testnet"}
+      title={wrong ? "Wrong network. Click to switch to Sepolia." : "Sepolia testnet"}
       onClick={onClick}
     >
       <span className="chain-dot" />

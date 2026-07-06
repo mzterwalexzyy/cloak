@@ -25,39 +25,36 @@ export function diagnoseAddress(addr: string): string {
   // No 0x prefix — could be Solana base58, Bitcoin, or just garbage
   if (!trimmed.startsWith("0x") && !trimmed.startsWith("0X")) {
     if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed)) {
-      return "Looks like a Solana address — Cloak runs on Ethereum. Use an EVM (0x…) address.";
+      return "Looks like a Solana address. Cloak runs on Ethereum. Use an EVM (0x…) address.";
     }
     if (/^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed) || /^bc1[a-z0-9]{6,87}$/i.test(trimmed)) {
-      return "Looks like a Bitcoin address — Cloak runs on Ethereum. Use an EVM (0x…) address.";
+      return "Looks like a Bitcoin address. Cloak runs on Ethereum. Use an EVM (0x…) address.";
     }
     if (/^[A-Za-z0-9]{32,64}$/.test(trimmed)) {
-      return "Unrecognised address format — EVM addresses start with 0x followed by 40 hex characters.";
+      return "Unrecognised address format. EVM addresses start with 0x followed by 40 hex characters.";
     }
-    return "Not an Ethereum address — must start with 0x.";
+    return "Not an Ethereum address. Must start with 0x.";
   }
 
   const hex = trimmed.slice(2);
 
-  // Non-hex characters after 0x
   if (!/^[0-9a-fA-F]*$/.test(hex)) {
-    return "Contains non-hex characters after 0x — EVM addresses use 0–9 and a–f only.";
+    return "Contains non-hex characters after 0x. EVM addresses use 0-9 and a-f only.";
   }
 
   if (hex.length < 40) {
-    return `Incomplete address — ${trimmed.length} chars, needs 42 (0x + 40 hex digits).`;
+    return `Incomplete address: ${trimmed.length} chars, needs 42 (0x + 40 hex digits).`;
   }
 
   if (hex.length === 64) {
-    // Aptos and SUI both use 0x + 64 hex
-    return "Looks like an Aptos or SUI address (0x + 64 hex) — EVM addresses are 0x + 40 hex.";
+    return "Looks like an Aptos or SUI address (0x + 64 hex). EVM addresses are 0x + 40 hex.";
   }
 
   if (hex.length > 40) {
-    return `Too long — ${trimmed.length} chars. EVM addresses are exactly 42 characters.`;
+    return `Too long: ${trimmed.length} chars. EVM addresses are exactly 42 characters.`;
   }
 
-  // Exactly 40 valid hex chars but failed isAddress() checksum
-  return "Invalid EIP-55 checksum — double-check the address or use the all-lowercase version.";
+  return "Invalid EIP-55 checksum. Double-check the address or use the all-lowercase version.";
 }
 
 /** Parse a free-form recipient list (one per line: `address, amount` or `address amount`). */
@@ -70,11 +67,11 @@ export function parseRecipientText(text: string): RecipientRow[] {
       const parts = trimmed.split(/[\s,;]+/).filter(Boolean);
       const id = String(i);
       if (parts.length < 2) {
-        return { id, address: trimmed, amount: "", parseError: "Missing amount — expected: address, amount", status: "idle" } as RecipientRow;
+        return { id, address: trimmed, amount: "", parseError: "Missing amount. Expected: address, amount", status: "idle" } as RecipientRow;
       }
       const [addr, amount, ...rest] = parts;
       if (rest.length > 0) {
-        return { id, address: addr, amount, parseError: "Too many fields — expected only: address, amount", status: "idle" } as RecipientRow;
+        return { id, address: addr, amount, parseError: "Too many fields. Expected only: address, amount", status: "idle" } as RecipientRow;
       }
       if (!isAddress(addr, { strict: false })) {
         return { id, address: addr, amount, parseError: diagnoseAddress(addr), status: "idle" } as RecipientRow;
@@ -93,7 +90,7 @@ export function parseRecipientText(text: string): RecipientRow[] {
     if (row.parseError) return row;
     const key = row.address.toLowerCase();
     if (seen.has(key)) {
-      return { ...row, parseError: `Duplicate address — already listed at row ${seen.get(key)}` };
+      return { ...row, parseError: `Duplicate address, already listed at row ${seen.get(key)}` };
     }
     seen.set(key, i + 1);
     return row;

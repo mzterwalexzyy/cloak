@@ -109,7 +109,7 @@ export function usePairActions(pair: TokenWrapperPairWithMetadata, zama: ZamaSdk
     try {
       const token = zama.getSdk().createToken(pair.confidentialTokenAddress);
       const res = await token.confidentialTransfer(sendTo as `0x${string}`, toBaseUnits(sendAmt, c.decimals));
-      setSendTx({ status: "ok", msg: "Sent confidentially ✓ — amount hidden on-chain", hash: txHash(res) });
+      setSendTx({ status: "ok", msg: "Sent confidentially ✓. Amount hidden on-chain.", hash: txHash(res) });
       setSendAmt("");
       setBal({ loading: false });
     } catch (e) {

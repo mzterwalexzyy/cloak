@@ -9,7 +9,7 @@ const STEPS: Step[] = [
   {
     welcome: true,
     title: `Welcome to ${BRAND}`,
-    body: `${BRAND} turns the official Zama Wrappers Registry into a usable product — wrap any token into a confidential ERC-7984 version, decrypt only for yourself, and send hidden amounts. Here's a 30-second tour.`,
+    body: `${BRAND} turns the official Zama Wrappers Registry into a usable product: wrap any token into a confidential ERC-7984 version, decrypt only for yourself, and send hidden amounts. Here's a 30-second tour.`,
   },
   {
     sel: '[data-tour="connect"]',
@@ -19,22 +19,22 @@ const STEPS: Step[] = [
   {
     sel: '[data-tour="faucet"]',
     title: "2 · Get test tokens",
-    body: "New here? Mint free mock tokens from the Faucet — you'll need them before you can wrap anything.",
+    body: "New here? Mint free mock tokens from the Faucet. You'll need them before you can wrap anything.",
   },
   {
     sel: '[data-tour="console"]',
     title: "3 · Wrap right here",
-    body: "Pick a token, enter an amount, and wrap your public balance into its confidential ERC-7984 version — straight from the home screen.",
+    body: "Pick a token, enter an amount, and wrap your public balance into its confidential ERC-7984 version, straight from the home screen.",
   },
   {
     sel: '[data-tour="start"]',
     title: "4 · Do more",
-    body: "Open the full console to unwrap, decrypt your private balance, and send hidden amounts — all for any pair from one screen.",
+    body: "Open the full console to unwrap, decrypt your private balance, and send hidden amounts. All for any pair from one screen.",
   },
   {
     sel: '[data-tour="disperse"]',
     title: "5 · Disperse to many",
-    body: "Send FHE-encrypted tokens to multiple addresses at once — paste or upload a CSV list, preview amounts, and batch-send in one session.",
+    body: "Send FHE-encrypted tokens to multiple addresses at once: paste or upload a CSV list, preview amounts, and batch-send in one session.",
   },
   {
     sel: '[data-tour="airdrop"]',
@@ -44,7 +44,7 @@ const STEPS: Step[] = [
   {
     sel: '[data-tour="history"]',
     title: "7 · Transaction history",
-    body: "View all your recent on-chain activity — wraps, sends, disperses and more — fetched live from Etherscan Sepolia.",
+    body: "View all your recent on-chain activity: wraps, sends, disperses and more, fetched live from Blockscout Sepolia.",
   },
   {
     sel: '[data-tour="about"]',
@@ -165,7 +165,7 @@ export function Tour() {
           <h4>{step.title}</h4>
           <p>{step.body}</p>
           {step.welcome && (
-            <div className="tour-warn">⚠️ Use a <strong>burner wallet only</strong> — this is experimental testnet software.</div>
+            <div className="tour-warn">⚠️ Use a <strong>burner wallet only</strong>. This is experimental testnet software.</div>
           )}
           <div className="tour-actions">
             <button className="tour-skip" onClick={finish}>Skip tour</button>

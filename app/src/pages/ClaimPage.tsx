@@ -135,7 +135,7 @@ export function ClaimPage() {
             <div className="cs-text">Claim registered</div>
             <div className="cs-sub">
               Your claim is recorded on-chain. The campaign organizer will send your
-              confidential allocation — only you will be able to see the amount.
+              confidential allocation. Only you will be able to see the amount.
             </div>
             {txHash && (
               <a
@@ -169,8 +169,8 @@ export function ClaimPage() {
             <div className="cs-icon">✓</div>
             <div className="cs-text">You are eligible</div>
             <div className="cs-sub">
-              Your allocation will be sent as a confidential FHE-encrypted transfer —
-              only you can see the amount after it arrives.
+              Your allocation will be sent as a confidential FHE-encrypted transfer.
+              Only you can see the amount after it arrives.
             </div>
             {claimStatus.feeWei > 0n && (
               <div className="claim-fee-note">
@@ -186,7 +186,7 @@ export function ClaimPage() {
               {claiming
                 ? <><span className="spinner" /> Confirming…</>
                 : claimStatus.feeWei > 0n
-                  ? `Claim — pay ${formatEther(claimStatus.feeWei)} ETH →`
+                  ? `Claim: pay ${formatEther(claimStatus.feeWei)} ETH →`
                   : "Claim my allocation →"}
             </button>
           </div>

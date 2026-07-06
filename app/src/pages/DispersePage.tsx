@@ -51,7 +51,7 @@ function ConfirmModal({
         </p>
         <div className="modal-fhe-note">
           <strong>Why {validCount} wallet confirmation{validCount !== 1 ? "s" : ""}?</strong><br />
-          FHE tokens encrypt each amount individually — every transfer needs its own unique
+          FHE tokens encrypt each amount individually; every transfer needs its own unique
           ciphertext and your wallet's proof. This is a protocol requirement of ERC-7984
           confidential transfers, not a UI limitation. Simply click <em>Confirm</em> for each
           popup as it appears.
@@ -91,7 +91,7 @@ export function DispersePage() {
   const errorCount = rows.filter((r) => r.parseError).length;
   const sentCount = liveRows.filter((r) => r.status === "ok").length;
   const failCount = liveRows.filter((r) => r.status === "error").length;
-  const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "—";
+  const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "...";
   const totalAmt = rows.filter((r) => !r.parseError).reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const progressPct = validCount > 0 ? Math.round((sentCount / validCount) * 100) : 0;
 
@@ -241,7 +241,7 @@ export function DispersePage() {
                 <div className="dp-bar-wrap">
                   <div className="dp-bar" style={{ width: `${progressPct}%` }} />
                 </div>
-                <span className="dp-label">Sending {sentCount} of {validCount} — confirm each wallet popup</span>
+                <span className="dp-label">Sending {sentCount} of {validCount}. Confirm each wallet popup.</span>
               </div>
             )}
 
@@ -288,7 +288,7 @@ export function DispersePage() {
             <div className="disperse-preview-head">
               <span className="dc-label">{isDone || isRunning ? "Results" : "Preview"}</span>
               {displayRows.length > 0 && !isRunning && !isDone && (
-                <span className="disperse-preview-count">— {validCount} recipients</span>
+                <span className="disperse-preview-count">{validCount} recipients</span>
               )}
             </div>
 
@@ -341,8 +341,8 @@ export function DispersePage() {
                       <Fragment key={row.id}>
                         <tr className={row.parseError ? "row-err" : row.status === "ok" ? "row-ok" : row.status === "error" ? "row-fail" : ""}>
                           <td className="mono muted">{idx + 1}</td>
-                          <td className="mono">{shortAddr(row.address || "—")}</td>
-                          <td className="mono">{row.amount || "—"} {!row.parseError ? sym : ""}</td>
+                          <td className="mono">{shortAddr(row.address || "...")}</td>
+                          <td className="mono">{row.amount || "..."} {!row.parseError ? sym : ""}</td>
                           <td>
                             {row.parseError ? (
                               <span className="badge badge-skip">skipped</span>

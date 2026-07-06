@@ -155,7 +155,7 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
         <div className="dc-section">
           <label className="dc-label">
             Query ID
-            <span className="dc-label-meta"> — number in Dune URL</span>
+            <span className="dc-label-meta"> (number in Dune URL)</span>
           </label>
           <input
             className="dc-input"
@@ -200,8 +200,8 @@ function DunePanel({ onImport }: { onImport: (rows: { address: string; amount: s
                 {filtered.slice(0, 50).map((r) => (
                   <tr key={r.address}>
                     <td className="mono">{shortAddr(r.address)}</td>
-                    <td className="mono">{r.tx_count ?? "—"}</td>
-                    <td className="mono">{r.volume !== undefined ? `$${r.volume.toLocaleString()}` : "—"}</td>
+                    <td className="mono">{r.tx_count ?? "..."}</td>
+                    <td className="mono">{r.volume !== undefined ? `$${r.volume.toLocaleString()}` : "..."}</td>
                   </tr>
                 ))}
                 {filtered.length > 50 && (
@@ -256,7 +256,7 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
 
   const rows = useMemo(() => parseRecipientText(rawText), [rawText]);
   const validRows = rows.filter((r) => !r.parseError);
-  const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "—";
+  const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "...";
 
   async function handleFile(file: File) {
     setFileError("");
@@ -267,7 +267,7 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
       const lines = parsed.map((r) => `${r.address}${r.amount ? `, ${r.amount}` : ", 0"}`).join("\n");
       setRawText(lines);
       setImportMode("paste");
-      if (noAmt.length) setFileError(`${noAmt.length} rows had no amount column — set to 0. Edit below.`);
+      if (noAmt.length) setFileError(`${noAmt.length} rows had no amount column, set to 0. Edit below.`);
     } catch (e) {
       setFileError(errMsg(e));
     }
@@ -417,7 +417,7 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
           {mode === "claim" && (
             <div className="ac-row">
               <div className="dc-section">
-                <label className="dc-label">FCFS limit<span className="dc-label-meta"> — blank = unlimited</span></label>
+                <label className="dc-label">FCFS limit<span className="dc-label-meta"> (blank = unlimited)</span></label>
                 <input className="dc-input" type="number" min="1" placeholder="e.g. 500" value={claimLimit} onChange={(e) => setClaimLimit(e.target.value)} />
               </div>
               <div className="dc-section">
@@ -432,7 +432,7 @@ function CreateForm({ pairs, onCreated, creatorAddress }: {
 
           {mode === "claim" && feeMode === "paid" && (
             <div className="dc-section">
-              <label className="dc-label">Fee amount (ETH)<span className="dc-label-meta"> — collected on claim, you withdraw anytime</span></label>
+              <label className="dc-label">Fee amount (ETH)<span className="dc-label-meta"> (collected on claim, withdraw anytime)</span></label>
               <input className="dc-input" type="number" min="0" step="0.0001" placeholder="e.g. 0.001 ≈ $3 · covers gas for one FHE transfer" value={claimFeeEth} onChange={(e) => setClaimFeeEth(e.target.value)} />
             </div>
           )}
@@ -696,7 +696,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
   async function withdrawFees() {
     if (!walletClient || !publicClient || !campaign.contractAddress) return;
     if (accumulatedFees === 0n) {
-      setWithdrawMsg("No fees to withdraw — contract balance is 0.");
+      setWithdrawMsg("No fees to withdraw; contract balance is 0.");
       return;
     }
     setWithdrawing(true);
@@ -708,7 +708,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
         functionName: "withdraw",
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      setWithdrawMsg(`Withdrawn ✓ — tx: ${hash.slice(0, 12)}…`);
+      setWithdrawMsg(`Withdrawn ✓. tx: ${hash.slice(0, 12)}…`);
       setAccumulatedFees(0n);
     } catch (e) {
       setWithdrawMsg(e instanceof Error ? e.message.slice(0, 100) : "Withdraw failed");
@@ -747,7 +747,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
     // For deployed claim contracts, addEligible on-chain is mandatory — fail early if wallet not ready
     const needsOnChain = campaign.mode === "claim" && campaign.contractDeployed && campaign.contractAddress;
     if (needsOnChain && (!walletClient || !publicClient)) {
-      setAddMsg("Wallet not connected — connect the admin wallet first.");
+      setAddMsg("Wallet not connected. Connect the admin wallet first.");
       return;
     }
 
@@ -775,7 +775,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
           await publicClient.waitForTransactionReceipt({ hash: h });
         }
       } catch (e) {
-        setAddMsg(`On-chain addEligible failed — addresses NOT added. Make sure you're connected with the admin wallet that deployed the contract. Error: ${errMsg(e)}`);
+        setAddMsg(`On-chain addEligible failed; addresses NOT added. Make sure you're connected with the admin wallet that deployed the contract. Error: ${errMsg(e)}`);
         setAddStatus("error");
         return;
       }
@@ -1024,7 +1024,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
             <div className="add-wallets-panel">
               <div className="dc-label">
                 Add more recipients
-                <span className="dc-label-meta"> — duplicates are skipped automatically</span>
+                <span className="dc-label-meta"> (duplicates are skipped automatically)</span>
               </div>
 
               <div className="import-mode-tabs" style={{ marginTop: 10 }}>
@@ -1337,7 +1337,7 @@ export function AirdropPage() {
 
   const totalRecipients = campaigns.reduce((s, c) => s + c.recipients.length, 0);
   const totalSent = campaigns.reduce((s, c) => s + c.recipients.filter((r) => r.status === "sent").length, 0);
-  const successRate = totalRecipients > 0 ? ((totalSent / totalRecipients) * 100).toFixed(1) : "—";
+  const successRate = totalRecipients > 0 ? ((totalSent / totalRecipients) * 100).toFixed(1) : "0";
 
   return (
     <div className="airdrop-page">
@@ -1368,7 +1368,7 @@ export function AirdropPage() {
                 <span className="ad-stat-label">Tokens distributed</span>
               </div>
               <div className="ad-stat">
-                <span className="ad-stat-val">{successRate}{successRate !== "—" ? "%" : ""}</span>
+                <span className="ad-stat-val">{successRate}%</span>
                 <span className="ad-stat-label">Success rate</span>
               </div>
             </div>
@@ -1415,7 +1415,7 @@ export function AirdropPage() {
             <div className="ad-trust-strip">
               {[
                 { icon: "🔒", title: "Encrypted amounts", sub: "FHE keeps every balance and transfer amount hidden on-chain" },
-                { icon: "⛓", title: "Fully on-chain", sub: "Immutable recipient lists and claim contracts — no backend required" },
+                { icon: "⛓", title: "Fully on-chain", sub: "Immutable recipient lists and claim contracts. No backend required." },
                 { icon: "🔑", title: "Non-custodial", sub: "You hold your keys and control the airdrop from start to finish" },
               ].map((f) => (
                 <div key={f.title} className="ad-trust-item">

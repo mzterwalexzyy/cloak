@@ -153,7 +153,7 @@ export function HistoryPage() {
                       {isIn ? (
                         <span className="history-addr-tag">From <span className="mono">{shortAddr(tx.from)}</span></span>
                       ) : (
-                        <span className="history-addr-tag">To <span className="mono">{shortAddr(tx.to || "—")}</span></span>
+                        <span className="history-addr-tag">To <span className="mono">{shortAddr(tx.to || "...")}</span></span>
                       )}
                       <span className="history-gas muted">· {Number(tx.gasUsed).toLocaleString()} gas</span>
                     </div>

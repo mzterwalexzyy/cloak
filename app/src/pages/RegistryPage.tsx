@@ -131,7 +131,7 @@ export function RegistryPage() {
             transition={{ duration: 0.5, delay: 0.58, ease: [0.22, 1, 0.36, 1] }}
           >
             Wrap tokens in FHE. Hide balances. Stay composable. The complete ERC-7984 privacy
-            lifecycle — wrap, decrypt, send, unwrap — powered by the official Zama Wrapper Registry.
+            lifecycle: wrap, decrypt, send, unwrap. Powered by the official Zama Wrapper Registry.
           </motion.p>
           <motion.div
             className="hero-buttons"
@@ -260,7 +260,7 @@ export function RegistryPage() {
           {([
             { icon: "🔗", title: "Registry native", body: "Every token pair is loaded from Zama's official wrapper registry, not a hand-made list." },
             { icon: "🔑", title: "Owner-only reveal", body: "Decrypting asks your wallet for authorization before showing the balance in your browser." },
-            { icon: "⚡", title: "Full lifecycle", body: "Wrap, unwrap, decrypt, confidential send, and faucet — the complete token privacy flow in one place." },
+            { icon: "⚡", title: "Full lifecycle", body: "Wrap, unwrap, decrypt, confidential send, and faucet: the complete token privacy flow in one place." },
           ] as const).map(({ icon, title, body }, i) => (
             <motion.div
               key={title}

@@ -74,7 +74,7 @@ export function PairPage() {
           <div className="pair-balances">
             <div className="pair-balance-item">
               <span>{displaySym(u.symbol)} balance</span>
-              <strong>{a.underlyingBal !== undefined ? fmtAmount(a.underlyingBal, u.decimals) : "—"} {displaySym(u.symbol)}</strong>
+              <strong>{a.underlyingBal !== undefined ? fmtAmount(a.underlyingBal, u.decimals) : "..."} {displaySym(u.symbol)}</strong>
             </div>
             <div className="pair-balance-item pair-balance-conf">
               <span>c{displaySym(u.symbol)} balance</span>

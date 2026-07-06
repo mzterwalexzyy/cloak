@@ -10,7 +10,7 @@ const HOW_STEPS = [
   {
     num: "2",
     title: "Own privately",
-    body: "Your balance is encrypted on-chain. No one — not even a node — can read it.",
+    body: "Your balance is encrypted on-chain. No one, not even a node, can read it.",
   },
   {
     num: "3",
@@ -148,7 +148,7 @@ export function AboutPage() {
         <h3>What stays private?</h3>
         <p>
           Confidential (ERC-7984) balances are stored <strong>encrypted</strong> on-chain. Anyone can see that a
-          transfer happened and between which addresses — but <strong>not the amount</strong>. It's amount-confidential,
+          transfer happened and between which addresses, but <strong>not the amount</strong>. It's amount-confidential,
           not anonymous.
         </p>
         <h3>Trust model</h3>
