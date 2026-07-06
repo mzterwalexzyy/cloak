@@ -27,7 +27,7 @@ export function useZamaSdk(): ZamaSdkHandle {
 
   const getSdk = useCallback((): ZamaSDK => {
     if (!walletClient) throw new Error("Connect your wallet on Sepolia first.");
-    if (!publicClient) throw new Error("No RPC connection — check your network.");
+    if (!publicClient) throw new Error("No RPC connection. Check your network.");
     const key = `${walletClient.account?.address ?? ""}:${walletClient.chain?.id ?? ""}`;
     if (cache.current?.key === key) return cache.current.sdk;
     const sdk = createSdk(publicClient as PublicClient, walletClient as WalletClient);

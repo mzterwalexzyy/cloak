@@ -39,7 +39,7 @@ export async function fetchDuneQuery(apiKey: string, queryId: string): Promise<D
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     if (res.status === 401) throw new Error("Invalid Dune API key.");
-    if (res.status === 404) throw new Error(`Query ${queryId} not found — check the ID.`);
+    if (res.status === 404) throw new Error(`Query ${queryId} not found. Check the ID.`);
     throw new Error(`Dune API error ${res.status}: ${body.slice(0, 120)}`);
   }
 

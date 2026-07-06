@@ -1350,8 +1350,8 @@ export function AirdropPage() {
               <h1 className="ad-hero-title">Airdrop campaigns</h1>
               <p className="ad-hero-sub">Create and manage token airdrops with FHE-encrypted amounts. Recipients never see what others received.</p>
               <div className="ad-hero-btns">
-                <button className="btn btn-primary" onClick={() => setTab("create")}>+ New campaign</button>
                 <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>Live campaigns 🔔</button>
+                <button className="btn btn-primary" onClick={() => setTab("create")}>+ New campaign</button>
               </div>
             </div>
             <div className="ad-stats-row">
@@ -1384,16 +1384,16 @@ export function AirdropPage() {
         <>
           <div className="airdrop-page-actions">
             <button
-              className={`btn btn-primary ${tab === "create" ? "active" : ""}`}
-              onClick={() => setTab("create")}
-            >
-              + New campaign
-            </button>
-            <button
               className={`btn btn-ghost ${tab === "campaigns" ? "active" : ""}`}
               onClick={() => setTab("campaigns")}
             >
               Live campaigns
+            </button>
+            <button
+              className={`btn btn-primary ${tab === "create" ? "active" : ""}`}
+              onClick={() => setTab("create")}
+            >
+              + New campaign
             </button>
           </div>
 
