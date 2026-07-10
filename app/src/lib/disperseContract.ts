@@ -1,7 +1,7 @@
 /** CloakDisperse V2 — batch single-tx confidential disperse contract. */
 
-/** Set to the deployed contract address after deployment. */
-export const CLOAK_DISPERSE_ADDRESS: string = "PENDING_DEPLOY";
+/** CloakDisperse V2 — deployed on Sepolia. */
+export const CLOAK_DISPERSE_ADDRESS: string = "0xC5fd3F926ABBa2E505979D48b574E61fB283Db38";
 
 export const CLOAK_DISPERSE_ABI = [
   {
