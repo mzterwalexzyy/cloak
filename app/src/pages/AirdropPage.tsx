@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
@@ -1284,6 +1285,7 @@ function CampaignList({ campaigns, onSelect, onDelete }: {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function AirdropPage() {
+  const navigate = useNavigate();
   const { data } = useRegistryPairs();
   const zama = useZamaSdk();
   const { address } = useAccount();
@@ -1345,15 +1347,17 @@ export function AirdropPage() {
         <>
           {/* ── Hero ── */}
           <div className="ad-hero">
-            <div className="ad-hero-left">
+            <img src="/airdrop-hero.png" alt="" className="ad-hero-img ad-hero-img-dark" aria-hidden />
+            <img src="/airdrop-hero-light.png" alt="" className="ad-hero-img ad-hero-img-light" aria-hidden />
+            <div className="ad-hero-content">
+              <button className="btn btn-ghost btn-sm ad-back-btn" onClick={() => navigate("/")}>← Home</button>
               <div className="ad-hero-badge">🪂 Confidential Airdrops</div>
               <h1 className="ad-hero-title">Airdrop campaigns</h1>
               <p className="ad-hero-sub">Create and manage token airdrops with FHE-encrypted amounts. Recipients never see what others received.</p>
-              <div className="ad-hero-btns">
-                <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>Live campaigns 🔔</button>
-                <button className="btn btn-primary" onClick={() => setTab("create")}>+ New campaign</button>
-              </div>
             </div>
+          </div>
+          <div className="ad-stats-section">
+              <p className="ad-stats-label">Live campaign stats</p>
             <div className="ad-stats-row">
               <div className="ad-stat">
                 <span className="ad-stat-val">{campaigns.length}</span>
@@ -1369,10 +1373,10 @@ export function AirdropPage() {
               </div>
               <div className="ad-stat">
                 <span className="ad-stat-val">{successRate}%</span>
-                <span className="ad-stat-label">Success rate</span>
+                <span className="ad-stat-label">Completed transfers</span>
               </div>
             </div>
-          </div>
+            </div>
         </>
       )}
 
@@ -1383,15 +1387,8 @@ export function AirdropPage() {
       ) : (
         <>
           <div className="airdrop-page-actions">
-            {tab === "create" ? (
-              <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>
-                Live campaign stats
-              </button>
-            ) : (
-              <button className="btn btn-primary" onClick={() => setTab("create")}>
-                + New campaign
-              </button>
-            )}
+            <button className="btn btn-ghost" onClick={() => setTab("campaigns")}>Live campaigns 🔔</button>
+            <button className="btn btn-primary" onClick={() => setTab("create")}>+ New campaign</button>
           </div>
 
           <motion.div

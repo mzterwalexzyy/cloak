@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { useAccount, useConnect, useDisconnect, useSwitchChain, useChainId } from "wagmi";
+import { AnimatePresence } from "framer-motion";
+import { useAccount, useDisconnect, useSwitchChain, useChainId } from "wagmi";
 import { SEPOLIA_CHAIN_ID } from "../lib/wagmi";
 import { shortAddr } from "../lib/format";
+import { WalletModal } from "./WalletModal";
 
 export function ConnectBar() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { address, isConnected, connector } = useAccount();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const [copied, setCopied] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  const injected = connectors.find((c) => c.type === "injected") ?? connectors[0];
   const wrongNetwork = isConnected && chainId !== SEPOLIA_CHAIN_ID;
 
   function copyAddress() {
@@ -23,9 +24,14 @@ export function ConnectBar() {
 
   if (!isConnected) {
     return (
-      <button className="btn btn-primary" disabled={isPending} onClick={() => connect({ connector: injected })}>
-        {isPending ? "Connecting…" : "Connect Wallet"}
-      </button>
+      <>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+          Connect Wallet
+        </button>
+        <AnimatePresence>
+          {showModal && <WalletModal onClose={() => setShowModal(false)} />}
+        </AnimatePresence>
+      </>
     );
   }
 
@@ -44,7 +50,7 @@ export function ConnectBar() {
         <span className="mono connect-addr-text">{shortAddr(address!)}</span>
         <span className="connect-copy-hint">{copied ? "✓ Copied" : "Copy"}</span>
       </button>
-      <button className="connect-disconnect" onClick={() => disconnect()}>
+      <button className="connect-disconnect" onClick={() => disconnect({ connector })}>
         Disconnect
       </button>
     </div>

@@ -25,3 +25,5 @@ Thumbs.db
 
 # local preview launcher
 .claude/
+
+.vercel

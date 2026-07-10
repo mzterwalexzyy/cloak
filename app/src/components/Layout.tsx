@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConnectBar } from "./ConnectBar";
@@ -107,6 +107,14 @@ export function Layout() {
     localStorage.setItem("cloak-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  }, []);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   function toggleTheme() {
     setTheme((t) => (t === "dark" ? "light" : "dark"));
   }
@@ -201,7 +209,7 @@ export function Layout() {
               key={location.pathname}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
+              exit={{ opacity: 0, transition: { duration: 0 } }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             >
               <Outlet />
