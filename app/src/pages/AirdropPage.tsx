@@ -9,6 +9,13 @@ import { useZamaSdk } from "../hooks/useZamaSdk";
 import { ActionButton } from "../components/ActionButton";
 import { PairSelect } from "../components/PairSelect";
 import { parseRecipientText } from "../hooks/useDisperse";
+import {
+  CLOAK_DISPERSE_ADDRESS,
+  CLOAK_DISPERSE_ABI,
+  SET_OPERATOR_ABI,
+  IS_OPERATOR_ABI,
+  OPERATOR_UNTIL_MAX,
+} from "../lib/disperseContract";
 import { airdropStore, type AirdropCampaign, type AirdropRecipient } from "../lib/airdropStore";
 import { fetchDuneQuery, DUNE_KEY_STORAGE, type DuneRow } from "../lib/duneImport";
 import { displaySym, shortAddr, explorerTx, toBaseUnits } from "../lib/format";
@@ -548,6 +555,10 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
   const cancelRef = useRef(false);
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const { address: userAddress } = useAccount();
+  const [isOperatorApproved, setIsOperatorApproved] = useState<boolean | null>(null);
+  const [approvingOp, setApprovingOp] = useState(false);
+  const [approveOpError, setApproveOpError] = useState("");
   const { deploy, status: deployStatus, error: deployError, progress } = useDeployAirdrop();
   const [copied, setCopied] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -570,6 +581,35 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
     setCampaign(airdropStore.get(initial.id) ?? initial);
   }, [initial.id]);
 
+  useEffect(() => {
+    if (!publicClient || !userAddress || !campaign.tokenAddress || !CLOAK_DISPERSE_ADDRESS.startsWith("0x")) return;
+    publicClient.readContract({
+      address: campaign.tokenAddress as `0x${string}`,
+      abi: IS_OPERATOR_ABI,
+      functionName: "isOperator",
+      args: [userAddress, CLOAK_DISPERSE_ADDRESS as `0x${string}`],
+    }).then((r) => setIsOperatorApproved(Boolean(r))).catch(() => setIsOperatorApproved(false));
+  }, [publicClient, userAddress, campaign.tokenAddress]);
+
+  async function approveOperator() {
+    if (!walletClient || !userAddress || !campaign.tokenAddress) return;
+    setApprovingOp(true);
+    setApproveOpError("");
+    try {
+      const hash = await walletClient.writeContract({
+        address: campaign.tokenAddress as `0x${string}`,
+        abi: SET_OPERATOR_ABI,
+        functionName: "setOperator",
+        args: [CLOAK_DISPERSE_ADDRESS as `0x${string}`, OPERATOR_UNTIL_MAX],
+      });
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      setIsOperatorApproved(true);
+    } catch (e) {
+      setApproveOpError(errMsg(e));
+    }
+    setApprovingOp(false);
+  }
+
   const sym = displaySym(campaign.tokenSymbol);
   const sentCount = campaign.recipients.filter((r) => r.status === "sent").length;
   const failCount = campaign.recipients.filter((r) => r.status === "failed").length;
@@ -582,40 +622,87 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
     airdropStore.update(campaign.id, { status: "executing" });
     setCampaign((c) => ({ ...c, status: "executing" }));
 
-    // Always read from store so retryFailed()'s store updates are visible
     const snapshot = airdropStore.get(campaign.id)!;
 
-    // In claim mode, only send to recipients who actually claimed on-chain
     const claimantAddrsForExec = isClaimMode && campaign.contractDeployed
       ? new Set(claimQueue.map(e => e.claimant.toLowerCase()))
       : null;
 
-    for (const r of snapshot.recipients) {
-      if (cancelRef.current) break;
-      if (r.status === "sent") continue;
-      if (claimantAddrsForExec && !claimantAddrsForExec.has(r.address.toLowerCase())) continue;
+    const toSend = snapshot.recipients.filter((r) => {
+      if (r.status === "sent") return false;
+      if (claimantAddrsForExec && !claimantAddrsForExec.has(r.address.toLowerCase())) return false;
+      return true;
+    });
 
-      airdropStore.updateRecipient(campaign.id, r.address, { status: "pending" });
-      setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "pending" } : x) }));
-
-      try {
-        const token = zama.getSdk().createToken(campaign.tokenAddress as `0x${string}`);
-        const res = await token.confidentialTransfer(
-          r.address as `0x${string}`,
-          toBaseUnits(r.amount, campaign.tokenDecimals),
-        );
-        const hash = res && typeof res === "object" && "txHash" in res ? (res as any).txHash : undefined;
-        airdropStore.updateRecipient(campaign.id, r.address, { status: "sent", txHash: hash });
-        setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "sent", txHash: hash } : x) }));
-      } catch (e) {
-        airdropStore.updateRecipient(campaign.id, r.address, { status: "failed", errMsg: errMsg(e) });
-        setCampaign((c) => ({ ...c, recipients: c.recipients.map((x) => x.address === r.address ? { ...x, status: "failed", errMsg: errMsg(e) } : x) }));
-      }
+    if (toSend.length === 0) {
+      airdropStore.update(campaign.id, { status: "done", executedAt: new Date().toISOString() });
+      setCampaign(airdropStore.get(campaign.id) ?? snapshot);
+      setIsRunning(false);
+      onUpdate();
+      return;
     }
 
-    const latest = airdropStore.get(campaign.id)!;
-    airdropStore.update(campaign.id, { status: "done", executedAt: new Date().toISOString() });
-    setCampaign(airdropStore.get(campaign.id) ?? latest);
+    // Mark all pending at once
+    toSend.forEach((r) => airdropStore.updateRecipient(campaign.id, r.address, { status: "pending" }));
+    setCampaign((c) => ({
+      ...c,
+      recipients: c.recipients.map((r) =>
+        toSend.some((s) => s.address === r.address) ? { ...r, status: "pending" } : r
+      ),
+    }));
+
+    try {
+      if (!walletClient || !userAddress) throw new Error("Wallet not connected.");
+      if (!CLOAK_DISPERSE_ADDRESS.startsWith("0x")) throw new Error("CloakDisperse contract not deployed yet.");
+
+      const sdk = zama.getSdk();
+
+      const { encryptedValues, inputProof } = await sdk.encrypt({
+        values: toSend.map((r) => ({
+          value: toBaseUnits(r.amount, campaign.tokenDecimals),
+          type: "euint64" as const,
+        })),
+        contractAddress: campaign.tokenAddress as `0x${string}`,
+        userAddress,
+      });
+
+      const hash = await walletClient.writeContract({
+        address: CLOAK_DISPERSE_ADDRESS as `0x${string}`,
+        abi: CLOAK_DISPERSE_ABI,
+        functionName: "disperseConfidential",
+        args: [
+          campaign.tokenAddress as `0x${string}`,
+          userAddress,
+          toSend.map((r) => r.address as `0x${string}`),
+          encryptedValues as `0x${string}`[],
+          inputProof as `0x${string}`,
+        ],
+      });
+
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+
+      toSend.forEach((r) => airdropStore.updateRecipient(campaign.id, r.address, { status: "sent", txHash: hash }));
+      airdropStore.update(campaign.id, { status: "done", executedAt: new Date().toISOString() });
+      setCampaign((c) => ({
+        ...c,
+        status: "done",
+        recipients: c.recipients.map((r) =>
+          toSend.some((s) => s.address === r.address) ? { ...r, status: "sent", txHash: hash } : r
+        ),
+      }));
+    } catch (e) {
+      const msg = errMsg(e);
+      toSend.forEach((r) => airdropStore.updateRecipient(campaign.id, r.address, { status: "failed", errMsg: msg }));
+      airdropStore.update(campaign.id, { status: "draft" });
+      setCampaign((c) => ({
+        ...c,
+        status: "draft",
+        recipients: c.recipients.map((r) =>
+          toSend.some((s) => s.address === r.address) ? { ...r, status: "failed", errMsg: msg } : r
+        ),
+      }));
+    }
+
     setIsRunning(false);
     onUpdate();
   }
@@ -849,13 +936,22 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
             </span>
           </div>
         </div>
+        {/* Operator approval — shown to admin before first launch */}
+        {isAdmin && !isDone && isOperatorApproved === false && (
+          <div className="cd-op-approve">
+            <button className="btn btn-ghost btn-sm" onClick={approveOperator} disabled={approvingOp}>
+              {approvingOp ? <><span className="spinner" /> Approving…</> : "🔑 Approve disperse contract"}
+            </button>
+            {approveOpError && <span className="cd-op-err">{approveOpError}</span>}
+          </div>
+        )}
         {/* Push mode: launch/resume button — admin only */}
         {isAdmin && !isClaimMode && !isDone && (
           <ActionButton
-            ready={!isRunning}
-            readyHint="Loading…"
+            ready={!isRunning && isOperatorApproved !== false}
+            readyHint={isOperatorApproved === false ? "Approve operator first" : "Loading…"}
             pending={isRunning}
-            pendingText={`Sending… ${sentCount}/${total}`}
+            pendingText="Batch sending…"
             label={sentCount > 0 ? `Resume (${total - sentCount} left)` : "Launch airdrop →"}
             onAction={execute}
             className="btn btn-primary"
@@ -956,7 +1052,7 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
                     setCampaign((c) => ({ ...c, recipients: merged, status: "draft" }));
                     setTimeout(execute, 0);
                   }}
-                  disabled={isRunning}
+                  disabled={isRunning || isOperatorApproved === false}
                 >
                   Process {claimQueue.filter(ev => {
                     const r = campaign.recipients.find(x => x.address.toLowerCase() === ev.claimant.toLowerCase());

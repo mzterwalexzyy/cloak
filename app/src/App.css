@@ -4210,3 +4210,12 @@
 [data-theme="light"] .ds-v2-banner { background: rgba(0,170,90,0.07); border-color: rgba(0,170,90,0.2); }
 [data-theme="light"] .ds-operator-step { background: rgba(255,149,0,0.07); border-color: rgba(255,149,0,0.22); }
 
+/* Airdrop campaign — operator approval inline */
+.cd-op-approve {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cd-op-err { font-size: 0.8rem; color: #ff453a; }
+
