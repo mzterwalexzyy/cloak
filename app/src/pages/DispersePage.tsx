@@ -1,12 +1,13 @@
-import { Fragment, useRef, useMemo, useState } from "react";
+import { Fragment, useRef, useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRegistryPairs } from "../hooks/useRegistryPairs";
 import { useZamaSdk } from "../hooks/useZamaSdk";
 import { useDisperse, parseRecipientText } from "../hooks/useDisperse";
-import { ActionButton } from "../components/ActionButton";
 import { PairSelect } from "../components/PairSelect";
 import { displaySym, shortAddr, explorerTx } from "../lib/format";
 import { Link } from "react-router-dom";
+import { useAccount } from "wagmi";
+import { CLOAK_DISPERSE_ADDRESS } from "../lib/disperseContract";
 
 type ImportMode = "csv" | "paste";
 
@@ -44,22 +45,20 @@ function ConfirmModal({
         transition={{ duration: 0.18 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-icon">🔐</div>
-        <h3 className="modal-title">Ready to disperse</h3>
+        <div className="modal-icon">🚀</div>
+        <h3 className="modal-title">Batch dispatch V2</h3>
         <p className="modal-body">
-          Sending <strong>{total} {sym}</strong> to <strong>{validCount} recipient{validCount !== 1 ? "s" : ""}</strong>.
+          Sending <strong>{total} {sym}</strong> to <strong>{validCount} recipient{validCount !== 1 ? "s" : ""}</strong> in a single transaction.
         </p>
         <div className="modal-fhe-note">
-          <strong>Why {validCount} wallet confirmation{validCount !== 1 ? "s" : ""}?</strong><br />
-          FHE tokens encrypt each amount individually; every transfer needs its own unique
-          ciphertext and your wallet's proof. This is a protocol requirement of ERC-7984
-          confidential transfers, not a UI limitation. Simply click <em>Confirm</em> for each
-          popup as it appears.
+          <strong>How V2 batch dispatch works:</strong><br />
+          All {validCount} encrypted amounts are packed into one ZK proof. Your wallet signs
+          once, and all transfers settle in a single on-chain transaction — no repeated popups.
         </div>
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
           <button className="btn btn-primary" onClick={onConfirm}>
-            Send {validCount} transfer{validCount !== 1 ? "s" : ""} →
+            Dispatch {validCount} →
           </button>
         </div>
       </motion.div>
@@ -70,22 +69,35 @@ function ConfirmModal({
 export function DispersePage() {
   const { data } = useRegistryPairs();
   const zama = useZamaSdk();
+  const { isConnected } = useAccount();
   const pairs = useMemo(() => data?.items ?? [], [data]);
 
   const [selectedAddr, setSelectedAddr] = useState("");
   const selectedPair = pairs.find((p) => p.confidentialTokenAddress === selectedAddr) ?? pairs[0];
 
   const [importMode, setImportMode] = useState<ImportMode>("paste");
-  const [skipInvalid, setSkipInvalid] = useState(true);
   const [rawText, setRawText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const rows = useMemo(() => parseRecipientText(rawText), [rawText]);
 
-  const { disperseStatus, runDisperse, rows: liveRows, setRows } = useDisperse(zama);
-  const isRunning = disperseStatus === "running";
+  const {
+    disperseStatus,
+    batchTxHash,
+    isOperator,
+    runDisperse,
+    approveOperator,
+    checkIsOperator,
+    rows: liveRows,
+    setRows,
+    reset,
+  } = useDisperse(zama);
+
+  const isRunning = disperseStatus === "approving" || disperseStatus === "encrypting" || disperseStatus === "sending";
   const isDone = disperseStatus === "done";
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const [disperseError, setDisperseError] = useState<string | null>(null);
 
   const validCount = rows.filter((r) => !r.parseError).length;
   const errorCount = rows.filter((r) => r.parseError).length;
@@ -93,9 +105,16 @@ export function DispersePage() {
   const failCount = liveRows.filter((r) => r.status === "error").length;
   const sym = selectedPair ? displaySym(selectedPair.confidential.symbol) : "...";
   const totalAmt = rows.filter((r) => !r.parseError).reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const progressPct = validCount > 0 ? Math.round((sentCount / validCount) * 100) : 0;
 
   const displayRows = isDone || isRunning ? liveRows : rows;
+  const isDeployed = CLOAK_DISPERSE_ADDRESS.startsWith("0x");
+
+  // Check operator status whenever connected wallet or selected token changes
+  useEffect(() => {
+    if (isConnected && selectedPair && isDeployed) {
+      checkIsOperator(selectedPair.confidentialTokenAddress);
+    }
+  }, [isConnected, selectedPair?.confidentialTokenAddress, isDeployed, checkIsOperator]);
 
   async function handleFile(file: File) {
     const text = await parseCsvFile(file);
@@ -109,13 +128,37 @@ export function DispersePage() {
     if (file) handleFile(file);
   }
 
-  function handleConfirm() {
+  async function handleApprove() {
+    if (!selectedPair) return;
+    setApproveError(null);
+    try {
+      await approveOperator(selectedPair.confidentialTokenAddress);
+    } catch (e) {
+      setApproveError(e instanceof Error ? e.message.slice(0, 120) : String(e));
+    }
+  }
+
+  async function handleConfirm() {
     setShowConfirm(false);
     setRows(rows);
-    setTimeout(() => runDisperse(
-      selectedPair.confidentialTokenAddress,
-      selectedPair.confidential.decimals,
-    ), 0);
+    setDisperseError(null);
+    try {
+      await runDisperse(
+        selectedPair.confidentialTokenAddress,
+        selectedPair.confidential.decimals,
+      );
+    } catch (e) {
+      setDisperseError(e instanceof Error ? e.message.slice(0, 180) : String(e));
+    }
+  }
+
+  function statusLabel() {
+    switch (disperseStatus) {
+      case "approving":   return "Approving operator…";
+      case "encrypting":  return "Generating batch ZK proof…";
+      case "sending":     return "Submitting transaction…";
+      default:            return "";
+    }
   }
 
   return (
@@ -133,24 +176,45 @@ export function DispersePage() {
       </AnimatePresence>
 
       <div className="disperse-page">
-        <div className="disperse-page-head">
-          <Link to="/" className="back-link">← Home</Link>
-          <h1>Disperse</h1>
-          <p>Send FHE-encrypted tokens to multiple addresses in one session.</p>
+        <div className="ds-hero">
+          <img src="/disperse-hero.png" alt="" className="ds-hero-img ds-hero-img-dark" aria-hidden />
+          <img src="/disperse-hero-light.png" alt="" className="ds-hero-img ds-hero-img-light" aria-hidden />
+          <div className="ds-hero-content">
+            <Link to="/" className="btn btn-ghost btn-sm ad-back-btn">← Home</Link>
+            <div className="ad-hero-badge">◫ Confidential Disperse</div>
+            <h1 className="ad-hero-title">Disperse</h1>
+            <p className="ad-hero-sub">Send FHE-encrypted tokens to multiple addresses in one transaction.</p>
+          </div>
         </div>
 
-        {/* Step indicator */}
-        <div className="disperse-step-indicator">
-          <div className={`dsi-step ${validCount > 0 || rawText ? "dsi-done" : "dsi-active"}`}>
-            <span className="dsi-num">{validCount > 0 || rawText ? "✓" : "1"}</span>
-            <span className="dsi-label">Configure</span>
-          </div>
-          <div className="dsi-line" />
-          <div className={`dsi-step ${validCount > 0 ? "dsi-active" : ""}`}>
-            <span className="dsi-num">2</span>
-            <span className="dsi-label">Preview</span>
-          </div>
+        {/* V2 badge */}
+        <div className="ds-v2-banner">
+          <span className="ds-v2-pill">V2</span>
+          <span className="ds-v2-text">Batch dispatch — N recipients, 1 signature, 1 transaction</span>
         </div>
+
+        {/* Operator approval step */}
+        {isConnected && isDeployed && isOperator === false && (
+          <motion.div
+            className="ds-operator-step"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="ds-op-icon">🔑</div>
+            <div className="ds-op-body">
+              <strong>One-time setup required</strong>
+              <p>Approve the Cloak Disperse contract as an operator on this token so it can batch-send on your behalf.</p>
+              {approveError && <p className="ds-op-error">{approveError}</p>}
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleApprove}
+              disabled={disperseStatus === "approving"}
+            >
+              {disperseStatus === "approving" ? "Approving…" : "Approve Disperse Contract"}
+            </button>
+          </motion.div>
+        )}
 
         <div className="disperse-layout">
           {/* ── Left: inputs ── */}
@@ -169,6 +233,12 @@ export function DispersePage() {
                 mode="confidential"
               />
             </div>
+
+            {isOperator === true && (
+              <div className="ds-op-approved">
+                <span>✓</span> Disperse contract approved as operator
+              </div>
+            )}
 
             <div className="dc-section">
               <label className="dc-label">Import method</label>
@@ -216,19 +286,6 @@ export function DispersePage() {
               <code className="disperse-format-code">Address,Amount</code>
             </div>
 
-            <div className="disperse-options-row">
-              <span className="dc-label">Options</span>
-              <label className="disperse-toggle-label">
-                <span>Skip invalid rows</span>
-                <button
-                  className={`disperse-toggle ${skipInvalid ? "on" : ""}`}
-                  onClick={() => setSkipInvalid((v) => !v)}
-                  type="button"
-                  aria-pressed={skipInvalid}
-                />
-              </label>
-            </div>
-
             {rows.length > 0 && (
               <div className="dc-parse-summary">
                 <span className="ok-badge">{validCount} valid</span>
@@ -239,23 +296,30 @@ export function DispersePage() {
             {isRunning && (
               <div className="disperse-progress">
                 <div className="dp-bar-wrap">
-                  <div className="dp-bar" style={{ width: `${progressPct}%` }} />
+                  <div className="dp-bar dp-bar-animate" />
                 </div>
-                <span className="dp-label">Sending {sentCount} of {validCount}. Confirm each wallet popup.</span>
+                <span className="dp-label">{statusLabel()}</span>
               </div>
             )}
 
-            <ActionButton
-              ready={validCount > 0 && !isRunning && !isDone}
-              readyHint={rows.length === 0 ? "Add recipients above" : "Fix errors above"}
-              pending={isRunning}
-              pendingText={`Sending… ${sentCount}/${validCount}`}
-              label={`Approve ${sym}`}
-              onAction={() => setShowConfirm(true)}
-            />
-            {validCount > 0 && !isRunning && !isDone && (
-              <button className="btn btn-primary btn-block" style={{ marginTop: 8 }} onClick={() => setShowConfirm(true)}>
-                Send all ({validCount})
+            {disperseError && (
+              <div className="dc-error-banner">{disperseError}</div>
+            )}
+
+            {!isDone && (
+              <button
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 12 }}
+                disabled={validCount === 0 || isRunning || isOperator === false || !isDeployed}
+                onClick={() => setShowConfirm(true)}
+              >
+                {!isDeployed
+                  ? "Contract deploying…"
+                  : isOperator === false
+                  ? "Approve operator first"
+                  : isRunning
+                  ? statusLabel()
+                  : `Batch dispatch (${validCount})`}
               </button>
             )}
 
@@ -266,12 +330,22 @@ export function DispersePage() {
                   {errorCount > 0 && <span className="done-count skip">{errorCount} skipped</span>}
                   {failCount > 0 && <span className="done-count fail">{failCount} failed</span>}
                 </div>
+                {batchTxHash && (
+                  <a
+                    href={explorerTx(batchTxHash)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="done-tx-link"
+                  >
+                    View batch tx ↗
+                  </a>
+                )}
                 <p className="done-sub">
                   {failCount === 0 && errorCount === 0
-                    ? "All transfers sent confidentially."
-                    : "See the results table for skipped and failed rows."}
+                    ? "All transfers sent in one confidential transaction."
+                    : "See the results table for details."}
                 </p>
-                <button className="btn btn-ghost btn-sm" onClick={() => { setRows([]); setRawText(""); }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => { reset(); setRawText(""); setDisperseError(null); }}>
                   New disperse
                 </button>
               </div>
@@ -295,7 +369,7 @@ export function DispersePage() {
             {validCount > 0 && !isRunning && !isDone && (
               <div className="disperse-summary-card">
                 <div className="dsc-item">
-                  <span className="dsc-label">Total recipients</span>
+                  <span className="dsc-label">Recipients</span>
                   <span className="dsc-val">{validCount}</span>
                 </div>
                 <div className="dsc-divider" />
@@ -305,18 +379,9 @@ export function DispersePage() {
                 </div>
                 <div className="dsc-divider" />
                 <div className="dsc-item">
-                  <span className="dsc-label">Network fee est.</span>
-                  <span className="dsc-val">~{(validCount * 0.002).toFixed(3)} ETH</span>
+                  <span className="dsc-label">Transactions</span>
+                  <span className="dsc-val dsc-highlight">1 (V2 batch)</span>
                 </div>
-              </div>
-            )}
-
-            {isRunning && (
-              <div className="disperse-progress" style={{ marginBottom: 12 }}>
-                <div className="dp-bar-wrap">
-                  <div className="dp-bar" style={{ width: `${progressPct}%` }} />
-                </div>
-                <span className="dp-label">{sentCount} / {validCount} sent</span>
               </div>
             )}
 
@@ -348,12 +413,14 @@ export function DispersePage() {
                               <span className="badge badge-skip">skipped</span>
                             ) : row.status === "ok" ? (
                               <span className="badge badge-ok">
-                                {row.txHash ? <a href={explorerTx(row.txHash)} target="_blank" rel="noreferrer">OK ↗</a> : "OK"}
+                                {row.txHash
+                                  ? <a href={explorerTx(row.txHash)} target="_blank" rel="noreferrer">OK ↗</a>
+                                  : "OK"}
                               </span>
                             ) : row.status === "error" ? (
                               <span className="badge badge-err">failed</span>
                             ) : row.status === "pending" ? (
-                              <span className="badge badge-pending"><span className="spinner" /> sending</span>
+                              <span className="badge badge-pending"><span className="spinner" /> batch tx</span>
                             ) : (
                               <span className="badge badge-idle">queued</span>
                             )}
@@ -378,7 +445,7 @@ export function DispersePage() {
             )}
 
             <div className="disperse-footer-note">
-              ⓘ Encrypted transfers. Balances remain hidden.
+              ⓘ V2: All amounts packed into one ZK proof. One transaction, one signature.
             </div>
           </motion.div>
         </div>

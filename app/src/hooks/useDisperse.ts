@@ -1,7 +1,15 @@
 import { useState, useCallback } from "react";
 import { isAddress, getAddress } from "viem";
+import { usePublicClient, useWalletClient, useAccount } from "wagmi";
 import { toBaseUnits, explorerTx } from "../lib/format";
 import type { ZamaSdkHandle } from "./useZamaSdk";
+import {
+  CLOAK_DISPERSE_ADDRESS,
+  CLOAK_DISPERSE_ABI,
+  SET_OPERATOR_ABI,
+  IS_OPERATOR_ABI,
+  OPERATOR_UNTIL_MAX,
+} from "../lib/disperseContract";
 
 export interface RecipientRow {
   id: string;
@@ -13,7 +21,7 @@ export interface RecipientRow {
   errMsg?: string;
 }
 
-export type DisperseStatus = "idle" | "running" | "done";
+export type DisperseStatus = "idle" | "approving" | "encrypting" | "sending" | "done";
 
 /**
  * Returns a human-readable explanation of why an address is invalid.
@@ -22,7 +30,6 @@ export type DisperseStatus = "idle" | "running" | "done";
 export function diagnoseAddress(addr: string): string {
   const trimmed = addr.trim();
 
-  // No 0x prefix — could be Solana base58, Bitcoin, or just garbage
   if (!trimmed.startsWith("0x") && !trimmed.startsWith("0X")) {
     if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed)) {
       return "Looks like a Solana address. Cloak runs on Ethereum. Use an EVM (0x…) address.";
@@ -84,8 +91,7 @@ export function parseRecipientText(text: string): RecipientRow[] {
     })
     .filter((r): r is RecipientRow => r !== null);
 
-  // Mark duplicate addresses — keep the first occurrence, flag the rest
-  const seen = new Map<string, number>(); // normalised address → 1-based row number
+  const seen = new Map<string, number>();
   return rows.map((row, i) => {
     if (row.parseError) return row;
     const key = row.address.toLowerCase();
@@ -100,40 +106,114 @@ export function parseRecipientText(text: string): RecipientRow[] {
 export function useDisperse(zama: ZamaSdkHandle) {
   const [rows, setRows] = useState<RecipientRow[]>([]);
   const [disperseStatus, setDisperseStatus] = useState<DisperseStatus>("idle");
+  const [batchTxHash, setBatchTxHash] = useState<string | undefined>(undefined);
+  const [isOperator, setIsOperator] = useState<boolean | null>(null);
 
-  const setRow = useCallback((id: string, patch: Partial<RecipientRow>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  }, []);
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { address: userAddress } = useAccount();
 
+  /** Check if CloakDisperse is approved as an operator on the given token. */
+  const checkIsOperator = useCallback(async (tokenAddress: string): Promise<boolean> => {
+    if (!publicClient || !userAddress || !CLOAK_DISPERSE_ADDRESS.startsWith("0x")) return false;
+    try {
+      const result = await publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: IS_OPERATOR_ABI,
+        functionName: "isOperator",
+        args: [userAddress, CLOAK_DISPERSE_ADDRESS as `0x${string}`],
+      });
+      setIsOperator(Boolean(result));
+      return Boolean(result);
+    } catch {
+      setIsOperator(false);
+      return false;
+    }
+  }, [publicClient, userAddress]);
+
+  /** Approve CloakDisperse as an operator for this token. One-time per token per wallet. */
+  async function approveOperator(tokenAddress: string): Promise<string> {
+    if (!walletClient || !userAddress) throw new Error("Wallet not connected.");
+    if (!CLOAK_DISPERSE_ADDRESS.startsWith("0x")) throw new Error("Disperse contract not yet deployed.");
+
+    setDisperseStatus("approving");
+    const hash = await walletClient.writeContract({
+      address: tokenAddress as `0x${string}`,
+      abi: SET_OPERATOR_ABI,
+      functionName: "setOperator",
+      args: [CLOAK_DISPERSE_ADDRESS as `0x${string}`, OPERATOR_UNTIL_MAX],
+    });
+    if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+    setIsOperator(true);
+    setDisperseStatus("idle");
+    return hash;
+  }
+
+  /**
+   * V2 batch dispatch: generate ONE proof for all recipients, submit ONE transaction.
+   * Requires CloakDisperse to be approved as operator first (see approveOperator).
+   */
   async function runDisperse(tokenAddress: string, decimals: number) {
     const valid = rows.filter((r) => !r.parseError);
     if (!valid.length) return;
+    if (!walletClient || !userAddress) throw new Error("Wallet not connected.");
+    if (!CLOAK_DISPERSE_ADDRESS.startsWith("0x")) throw new Error("Disperse contract not yet deployed.");
 
-    setDisperseStatus("running");
-    // Reset all statuses
-    setRows((prev) => prev.map((r) => r.parseError ? r : { ...r, status: "idle", txHash: undefined, errMsg: undefined }));
+    setDisperseStatus("encrypting");
+    setBatchTxHash(undefined);
+    setRows((prev) => prev.map((r) => r.parseError ? r : { ...r, status: "pending", txHash: undefined, errMsg: undefined }));
 
-    for (const row of valid) {
-      setRow(row.id, { status: "pending" });
-      try {
-        const token = zama.getSdk().createToken(tokenAddress as `0x${string}`);
-        const res = await token.confidentialTransfer(
-          row.address as `0x${string}`,
-          toBaseUnits(row.amount, decimals),
-        );
-        const hash = res && typeof res === "object" && "txHash" in res ? (res as { txHash: string }).txHash : undefined;
-        setRow(row.id, { status: "ok", txHash: hash });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message.slice(0, 160) : String(e);
-        setRow(row.id, { status: "error", errMsg: msg });
-      }
+    try {
+      const sdk = zama.getSdk();
+
+      // Generate all encrypted amounts for the TOKEN contract address in one proof
+      const { encryptedValues, inputProof } = await sdk.encrypt({
+        values: valid.map((r) => ({
+          value: toBaseUnits(r.amount, decimals),
+          type: "euint64" as const,
+        })),
+        contractAddress: tokenAddress as `0x${string}`,
+        userAddress,
+      });
+
+      setDisperseStatus("sending");
+
+      // Single transaction — all recipients at once
+      const hash = await walletClient.writeContract({
+        address: CLOAK_DISPERSE_ADDRESS as `0x${string}`,
+        abi: CLOAK_DISPERSE_ABI,
+        functionName: "disperseConfidential",
+        args: [
+          tokenAddress as `0x${string}`,
+          userAddress,
+          valid.map((r) => r.address as `0x${string}`),
+          encryptedValues as `0x${string}`[],
+          inputProof as `0x${string}`,
+        ],
+      });
+
+      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+
+      setBatchTxHash(hash);
+      setRows((prev) =>
+        prev.map((r) => r.parseError ? r : { ...r, status: "ok", txHash: hash })
+      );
+      setDisperseStatus("done");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message.slice(0, 200) : String(e);
+      setRows((prev) =>
+        prev.map((r) => r.parseError ? r : { ...r, status: "error", errMsg: msg })
+      );
+      setDisperseStatus("idle");
+      throw e;
     }
-    setDisperseStatus("done");
   }
 
   function reset() {
     setRows([]);
     setDisperseStatus("idle");
+    setBatchTxHash(undefined);
+    setIsOperator(null);
   }
 
   const validRows = rows.filter((r) => !r.parseError);
@@ -141,5 +221,20 @@ export function useDisperse(zama: ZamaSdkHandle) {
   const sentCount = rows.filter((r) => r.status === "ok").length;
   const failCount = rows.filter((r) => r.status === "error").length;
 
-  return { rows, setRows, disperseStatus, runDisperse, reset, validRows, errorRows, sentCount, failCount, explorerTx };
+  return {
+    rows,
+    setRows,
+    disperseStatus,
+    batchTxHash,
+    isOperator,
+    runDisperse,
+    approveOperator,
+    checkIsOperator,
+    reset,
+    validRows,
+    errorRows,
+    sentCount,
+    failCount,
+    explorerTx,
+  };
 }
