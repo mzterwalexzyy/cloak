@@ -153,26 +153,28 @@ export function useDisperse(zama: ZamaSdkHandle) {
    * V2 batch dispatch: generate ONE proof for all recipients, submit ONE transaction.
    * Requires CloakDisperse to be approved as operator first (see approveOperator).
    */
-  async function runDisperse(tokenAddress: string, decimals: number) {
-    const valid = rows.filter((r) => !r.parseError);
+  async function runDisperse(tokenAddress: string, decimals: number, rowsOverride?: RecipientRow[]) {
+    const source = rowsOverride ?? rows;
+    const valid = source.filter((r) => !r.parseError);
     if (!valid.length) return;
     if (!walletClient || !userAddress) throw new Error("Wallet not connected.");
     if (!CLOAK_DISPERSE_ADDRESS.startsWith("0x")) throw new Error("Disperse contract not yet deployed.");
 
     setDisperseStatus("encrypting");
     setBatchTxHash(undefined);
-    setRows((prev) => prev.map((r) => r.parseError ? r : { ...r, status: "pending", txHash: undefined, errMsg: undefined }));
+    setRows(source.map((r) => r.parseError ? r : { ...r, status: "pending" as const, txHash: undefined, errMsg: undefined }));
 
     try {
       const sdk = zama.getSdk();
 
-      // Generate all encrypted amounts for the TOKEN contract address in one proof
+      // One batched proof for all amounts, bound to the DISPERSE contract — it is the
+      // contract that calls FHE.fromExternal, so the input verifier checks against it.
       const { encryptedValues, inputProof } = await sdk.encrypt({
         values: valid.map((r) => ({
           value: toBaseUnits(r.amount, decimals),
           type: "euint64" as const,
         })),
-        contractAddress: tokenAddress as `0x${string}`,
+        contractAddress: CLOAK_DISPERSE_ADDRESS as `0x${string}`,
         userAddress,
       });
 
@@ -192,7 +194,12 @@ export function useDisperse(zama: ZamaSdkHandle) {
         ],
       });
 
-      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success") {
+          throw new Error(`Batch transaction reverted on-chain: ${hash}`);
+        }
+      }
 
       setBatchTxHash(hash);
       setRows((prev) =>

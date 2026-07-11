@@ -1,7 +1,7 @@
 /** CloakDisperse V2 — batch single-tx confidential disperse contract. */
 
 /** CloakDisperse V2 — deployed on Sepolia. */
-export const CLOAK_DISPERSE_ADDRESS: string = "0xC5fd3F926ABBa2E505979D48b574E61fB283Db38";
+export const CLOAK_DISPERSE_ADDRESS: string = "0x52149648f00105c728401B9f55dCEd2fDC4Ad8dA";
 
 export const CLOAK_DISPERSE_ABI = [
   {
@@ -11,7 +11,7 @@ export const CLOAK_DISPERSE_ABI = [
       { name: "token",            type: "address",   internalType: "address" },
       { name: "from",             type: "address",   internalType: "address" },
       { name: "recipients",       type: "address[]", internalType: "address[]" },
-      { name: "encryptedAmounts", type: "bytes32[]", internalType: "bytes32[]" },
+      { name: "encryptedAmounts", type: "bytes32[]", internalType: "externalEuint64[]" },
       { name: "inputProof",       type: "bytes",     internalType: "bytes" },
     ],
     outputs: [],

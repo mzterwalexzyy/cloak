@@ -88,7 +88,6 @@ export function DispersePage() {
     approveOperator,
     checkIsOperator,
     rows: liveRows,
-    setRows,
     reset,
   } = useDisperse(zama);
 
@@ -140,12 +139,12 @@ export function DispersePage() {
 
   async function handleConfirm() {
     setShowConfirm(false);
-    setRows(rows);
     setDisperseError(null);
     try {
       await runDisperse(
         selectedPair.confidentialTokenAddress,
         selectedPair.confidential.decimals,
+        rows,
       );
     } catch (e) {
       setDisperseError(e instanceof Error ? e.message.slice(0, 180) : String(e));

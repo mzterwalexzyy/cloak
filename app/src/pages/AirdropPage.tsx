@@ -657,12 +657,14 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
 
       const sdk = zama.getSdk();
 
+      // One batched proof for all amounts, bound to the DISPERSE contract — it is the
+      // contract that calls FHE.fromExternal, so the input verifier checks against it.
       const { encryptedValues, inputProof } = await sdk.encrypt({
         values: toSend.map((r) => ({
           value: toBaseUnits(r.amount, campaign.tokenDecimals),
           type: "euint64" as const,
         })),
-        contractAddress: campaign.tokenAddress as `0x${string}`,
+        contractAddress: CLOAK_DISPERSE_ADDRESS as `0x${string}`,
         userAddress,
       });
 
@@ -679,7 +681,12 @@ function CampaignDetail({ campaign: initial, zama, onBack, onUpdate, isAdmin }: 
         ],
       });
 
-      if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success") {
+          throw new Error(`Batch transaction reverted on-chain: ${hash}`);
+        }
+      }
 
       toSend.forEach((r) => airdropStore.updateRecipient(campaign.id, r.address, { status: "sent", txHash: hash }));
       airdropStore.update(campaign.id, { status: "done", executedAt: new Date().toISOString() });
